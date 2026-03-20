@@ -1,0 +1,140 @@
+{
+  "meta": {
+    "titre": "Programme des Animations",
+    "mois_debut": "Mars",
+    "mois_fin": "Avril",
+    "annee": "2026",
+    "date_debut": "29 Mars",
+    "date_fin": "30 Avril"
+  },
+
+  "highlights": [
+    {"icon": "🚴", "couleur": "orange", "label": "Événement Phare",  "texte": "Fête Véloroute\nParis-Roubaix – 29 mars"},
+    {"icon": "🏆", "couleur": "bleu",   "label": "123ème Édition",   "texte": "Paris-Roubaix\n12 avril 2026"},
+    {"icon": "🏛️", "couleur": "vert",   "label": "Site UNESCO",      "texte": "Visites guidées\nArenberg Creative Mine"},
+    {"icon": "🎭", "couleur": "orange", "label": "Scènes Plurielles", "texte": "Spectacles CAPH\nJanv. – Juin 2026"}
+  ],
+
+  "page2_veloroute": {
+    "titre": "La Véloroute du Paris-Roubaix S'ANIME !",
+    "date": "Dimanche 29 Mars 2026",
+    "sous_titre": "Animations gratuites",
+    "sous_desc": "Boucles vélo · Trouée d'Arenberg · Vélodrome Roubaix · Musée Plein Air…",
+    "programme": [
+      {
+        "horaire": "9h → 10h30",
+        "titre": "🚴 En route vers les pavés d'Arenberg ! (Valenciennes → Wallers)",
+        "desc": "Départ groupé Port de plaisance Valescaut avec encadrement ADAV. 20 km. Vélos électriques disponibles 20€/j. Préparation smoothie vélo-énergie !",
+        "tags": [{"type": "free", "texte": "Gratuit sur réservation – 03 27 28 89 10"}]
+      },
+      {
+        "horaire": "10h → 15h",
+        "titre": "🏭 Site Minier d'Arenberg – Découverte interactive QR codes &amp; Audioguidée",
+        "desc": "Parcours QR codes gratuit sur le patrimoine UNESCO. Visite audioguidée autonome ~1h avec plan d'orientation.",
+        "tags": [
+          {"type": "free", "texte": "QR codes Gratuit"},
+          {"type": "paid", "texte": "Audioguidée 10€"},
+          {"type": "loc",  "texte": "Wallers-Arenberg · 03 27 48 39 65"}
+        ]
+      },
+      {
+        "horaire": "10h → 15h",
+        "titre": "🌿 Expérience Trouée d'Arenberg – Animation OT La Porte du Hainaut",
+        "desc": "2 400 m de pavés légendaires, anecdotes Jean Stablinski, échanges Parc naturel Scarpe-Escaut, ravitaillement local.",
+        "tags": [{"type": "free", "texte": "Gratuit – Stèle Jean Stablinski, Wallers-Arenberg"}]
+      },
+      {
+        "horaire": "9h → 16h",
+        "titre": "🏅 Chasse au trésor Totémus® – 8 secteurs pavés mythiques (Pévèle Carembault)",
+        "desc": "App gratuite. 34 km, 8 350 m de pavés classés incl. Carrefour de l'Arbre. À partir de 10 ans.",
+        "tags": [{"type": "free", "texte": "Gratuit – Gare Templeuve-en-Pévèle · 03 20 34 72 65"}]
+      },
+      {
+        "horaire": "7h → 17h",
+        "titre": "🏟️ Braderie du vélo + Baptême piste mythique + Expo – Vélodrome Roubaix",
+        "desc": "Braderie cycliste (stands dès 5€). Baptême piste inclinée 30 min (15€, dès 12 ans). Pumptrack enfants gratuit.",
+        "tags": [
+          {"type": "free", "texte": "Expo Gratuit"},
+          {"type": "paid", "texte": "Stands 5€ – Baptême 15€"},
+          {"type": "loc",  "texte": "STAB Vélodrome – Roubaix"}
+        ]
+      },
+      {
+        "horaire": "10h → 19h",
+        "titre": "🌾 Musée de Plein Air Villeneuve-d'Ascq (ouverture exceptionnelle)",
+        "desc": "Expo pédagogique vélo, circuit enfants 2-12 ans, marquage vélos (6€). Association Droit au Vélo.",
+        "tags": [{"type": "free", "texte": "Gratuit – 03 20 63 11 25"}]
+      }
+    ]
+  },
+
+  "page3_paris_roubaix": {
+    "titre": "PARIS-ROUBAIX",
+    "edition": "123ème Édition",
+    "date": "Dimanche 12 Avril 2026",
+    "sous": "L'Enfer du Nord",
+    "desc": "Pour la première fois, courses hommes et femmes le même dimanche ! À Wallers-Arenberg : village d'animations, écran géant, buvette, restauration. Départ fictif Paris-Roubaix Juniors à 11h15 depuis Saint-Amand-les-Eaux !",
+    "infos": [
+      {"label": "Départ Juniors", "valeur": "Saint-Amand 11h15"},
+      {"label": "Arrivée",        "valeur": "Vélodrome Roubaix"},
+      {"label": "Entrée spectateurs", "valeur": "Gratuite"}
+    ],
+    "visites": [
+      {"dates": "9-12", "mois": "Avr.", "couleur": "vert", "titre": "🎧 Visite Audioguidée du Site Minier UNESCO", "desc": "Audioguide + plan d'orientation. Visite autonome ~1h. Du 9 au 12 avril.", "prix": "10€"},
+      {"dates": "10",   "mois": "Avr.", "couleur": "bleu", "titre": "⚙️ Sous les Jupons des Chevalements",          "desc": "Visite technique extérieure : chevalements, puits. 1h, 25 pers. max.", "prix": "5€"},
+      {"dates": "11",   "mois": "Avr.", "couleur": "bleu", "titre": "🌿 La Trouée d'Arenberg et ses Pavés Mythiques","desc": "Drève des Boules d'Hérin, anecdotes Jean Stablinski, forêt domaniale. 1h.", "prix": "5€"},
+      {"dates": "11",   "mois": "Avr.", "couleur": "bleu", "titre": "⛏️ La Journée du Mineur",                       "desc": "Salle des pendus, douches, lampisterie, magasin d'outillage. 1h.", "prix": "5€"},
+      {"dates": "12",   "mois": "Avr.", "couleur": "bleu", "titre": "🏘️ La Vie Quotidienne du Mineur (cité UNESCO)", "desc": "Visite urbaine cité minière. Maisons, école ménagère, salle des fêtes. 1h.", "prix": "5€"}
+    ]
+  },
+
+  "page4_culture": {
+    "expositions": [
+      {"dates": "Jusqu'au 5 AVR", "couleur": "p", "titre": "Printemps des Femmes – Femmes de Sciences",       "desc": "Expositions, conférences et animations. Maison Louise de Bettignies + Médiathèque des Encres.",   "lieu": "Saint-Amand-les-Eaux", "tags": [{"type": "free", "texte": "Gratuit"}]},
+      {"dates": "28-29 MARS",     "couleur": "o", "titre": "Exposition SCULPTAM – 20 ans",                    "desc": "Célébration des 20 ans de l'association de sculpture. Week-end d'exposition.",                   "lieu": "Saint-Amand-les-Eaux", "tags": []},
+      {"dates": "Jusqu'au 10 AVR","couleur": "p", "titre": "Exposition \"Étranges Portraits\" – La FrAnne",   "desc": "Exposition de portraits photographiques du 13 mars au 10 avril.",                               "lieu": "La FrAnne – Lecelles", "tags": []},
+      {"dates": "Jusqu'au 11 AVR","couleur": "p", "titre": "Exposition \"Archaïsme\" – Erika Vaury",          "desc": "Œuvres à l'école d'art de Mortagne-du-Nord.",                                                   "lieu": "Mortagne-du-Nord", "tags": []},
+      {"dates": "18 MARS → 23 AVR","couleur": "b","titre": "Au loin – Spectacle vivant &amp; Exposition · Cie Longueur d'Onde","desc": "Galerie de la Fabrique des Arts transformée en scène. Représentations : <strong>8 avril 14h</strong> · <strong>18 avril 18h</strong>.", "lieu": "Fabrique des Arts – Denain", "tags": [{"type": "free", "texte": "Gratuit"}], "span": 2},
+      {"dates": "7 MARS → 31 MAI","couleur": "b", "titre": "La jeunesse des autres – Christiane Eisler · CRP/","desc": "Photographies Allemagne de l'Est années 1980. Vernissage 7 mars 12h30.",                         "lieu": "CRP/ – Douchy-les-Mines", "tags": [{"type": "free", "texte": "Entrée libre"}]},
+      {"dates": "7 AVRIL",        "couleur": "o", "titre": "Salon du Livre – 4ème Édition",                   "desc": "Rencontres auteurs, dédicaces et animations.",                                                   "lieu": "Saint-Amand-les-Eaux", "tags": [{"type": "fam", "texte": "Tout public"}]},
+      {"dates": "11 AVRIL",       "couleur": "b", "titre": "Ateliers Créatifs Créa'Muz – Musée de Denain",    "desc": "Ateliers gratuits enfants dès 7 ans, 10h-12h. Thème musical.",                                   "lieu": "Musée de Denain", "tags": [{"type": "free", "texte": "Gratuit"}, {"type": "fam", "texte": "Dès 7 ans"}]}
+    ],
+    "spectacles": [
+      {"dates": "27 MARS",        "couleur": "o", "titre": "Spectacle \"Mémoires d'Éléphant\"",               "desc": "Création théâtrale au Site Minier d'Arenberg.",                       "lieu": "Wallers-Arenberg", "tags": []},
+      {"dates": "27-28 MARS",     "couleur": "b", "titre": "Contes Musicaux à Mastaing",                      "desc": "Spectacle de contes musicaux pour toute la famille.",                  "lieu": "Mastaing", "tags": [{"type": "fam", "texte": "Famille"}]},
+      {"dates": "28 MARS",        "couleur": "o", "titre": "Le Grand Déclic – Forum Métiers de la Musique",   "desc": "Forum dédié aux métiers de la musique au Théâtre de Denain.",        "lieu": "Théâtre de Denain", "tags": []},
+      {"dates": "29 MARS · 4 &amp; 12 AVRIL","couleur": "p", "titre": "Balade Immersive CityWhispers",       "desc": "Découvrez Saint-Amand-les-Eaux sous un angle inédit et sonore.",      "lieu": "Saint-Amand-les-Eaux", "tags": []}
+    ]
+  },
+
+  "page5_nature": {
+    "nature": [
+      {"dates": "28 MARS",        "titre": "🦉 Nuit de la Chouette",                          "desc": "Sortie nature nocturne guidée. Rapaces nocturnes dans la forêt de Raismes-Saint-Amand.",    "lieu": "Raismes – Parc Nature", "tags": []},
+      {"dates": "29 MARS · 4 &amp; 12 AVRIL","titre": "🎧 Balade Immersive CityWhispers",     "desc": "Saint-Amand-les-Eaux sous un angle inédit et sonore.",                                      "lieu": "Saint-Amand-les-Eaux", "tags": []},
+      {"dates": "12 AVRIL",       "titre": "🐦 Festival de l'Oiseau – Trouée d'Arenberg",    "desc": "Balade nature le jour même du Paris-Roubaix ! Faune au bord des pavés.",                    "lieu": "Trouée d'Arenberg", "tags": [{"type": "free", "texte": "Gratuit"}]},
+      {"dates": "18 AVRIL",       "titre": "🌲 Festival de l'Oiseau – Forêt d'Arenberg",     "desc": "Visite guidée nature dans la forêt domaniale.",                                              "lieu": "Trouée d'Arenberg", "tags": []},
+      {"dates": "19 AVRIL",       "titre": "💧 Festival de l'Oiseau – Secrets des Étangs",   "desc": "Mare à Goriaux, Réserve Biologique. 200 espèces rares : grèbe huppé, balbuzard pêcheur…",   "lieu": "Mare à Goriaux – Raismes", "tags": []},
+      {"dates": "19-26 AVRIL",    "titre": "🪵 Festival de l'Oiseau – Atelier Nichoir",      "desc": "Fabriquez votre nichoir en famille.",                                                        "lieu": "Parc Loisirs – Raismes", "tags": [{"type": "fam", "texte": "Famille"}]},
+      {"dates": "25 AVRIL",       "titre": "🐦 Festival de l'Oiseau – Paradis des Oiseaux",  "desc": "Randonnée nature guidée au Parc Loisirs et Nature.",                                        "lieu": "Parc Loisirs – Raismes", "tags": []},
+      {"dates": "Tout AVRIL",     "titre": "🏭 Choulettorium – Musée brassicole",            "desc": "Musée immersif de la brasserie artisanale nordiste. Ouvert toute l'année.",                  "lieu": "Hordain", "tags": [{"type": "fam", "texte": "Tout public"}]}
+    ],
+    "paques": [
+      {"dates": "19-20 AVRIL", "couleur": "o", "titre": "🐣 Chasse aux Œufs avec le Train à Vapeur",         "desc": "À bord du train à vapeur pour la chasse aux œufs de Pâques !",              "lieu": "Port Fluvial – Saint-Amand-les-Eaux", "tags": [{"type": "fam", "texte": "Famille / Enfants"}]},
+      {"dates": "3 · 11 · 29 AVRIL","couleur": "b", "titre": "🎭 Scènes Plurielles – Spectacles en communes","desc": "STANS (dès 8 ans) · CONCILIABULE (dès 3 ans) · Tu sais siffler Berra ? (dès 6 ans).", "lieu": "Abscon · Maulde · Mortagne-du-Nord", "tags": [{"type": "paid", "texte": "5€ / Gratuit -16 ans"}]}
+    ]
+  },
+
+  "page8_scenes": [
+    {"dates": "🎤 Sam 21 Mars · 16h30/18h/19h", "titre": "Sur la Nappe des Mots – Cie L'Interlock",          "desc": "Cabaret poétique et gourmand. Habitants passeurs de poèmes. Dès 16 ans, 35 min.", "lieu": "Médiathèque d'Escaudain – 1 rue de la Savonnerie"},
+    {"dates": "💃 Ven 3 Avril · 20h",            "titre": "STANS – Cie Miscea Danse",                        "desc": "Danse flamenco contemporaine. Relecture du Stabat Mater par Ana Pérez. Dès 8 ans, 40 min.", "lieu": "Salle des fêtes – Rue Jules Guesde, Abscon"},
+    {"dates": "🎵 Sam 11 Avril · 10h30 🐣",      "titre": "CONCILIABULE – La Waide Cie",                    "desc": "Musique, danse, théâtre visuel et langue des signes. Dès 3 ans, 35 min. Atelier parents-enfants (3-6 ans).", "lieu": "Salle des fêtes – 70 Petite rue, Maulde"},
+    {"dates": "🎭 Mer 29 Avril · 14h30",          "titre": "Tu sais siffler Berra ? – Cie Vis-à-Vis Théâtre","desc": "Théâtre et marionnettes. Amitié intergénérationnelle. Dès 6 ans, 50 min.", "lieu": "Salle des fêtes – Rue Saint-Michel, Mortagne-du-Nord"}
+  ],
+
+  "page8_vie_locale": [
+    {"dates": "🛍️ Dim 12 Avril · 9h→17h", "couleur": "y", "titre": "Brocante du Moulin des Loups",        "desc": "Grande brocante le jour du Paris-Roubaix ! Buvette, restauration, fête foraine. Particuliers 2€/m · Professionnels 4€/m.", "lieu": "Rues Henri-Durre &amp; Jules-Guesde · 06 28 15 25 19"},
+    {"dates": "🎭 Jeu 2 Avril · 20h",      "couleur": "b", "titre": "Soirée théâtrale – Maladie de Parkinson","desc": "CPTS de l'Amandinois. Soirée théâtrale suivie d'un échange convivial. Gratuit.", "lieu": "Théâtre des Sources · contact@cptsamandinois.fr"},
+    {"dates": "💊 Jeu 9 Avril · 14h-18h",  "couleur": "g", "titre": "Conférence Sclérose en Plaque",       "desc": "Avec le Dr P. Vermersch et Anita Fatis, championne paralympique de natation. Inscription helloasso.", "lieu": "Résidence de la Collinière · Saint-Amand"},
+    {"dates": "🎬 Mer 25 Mars",             "couleur": "o", "titre": "Cin'Hainaut – Projection cinéma",     "desc": "Projection mensuelle au Site Minier d'Arenberg dans le cadre de Cin'Hainaut.", "lieu": "Site Minier – Wallers-Arenberg"}
+  ]
+}
