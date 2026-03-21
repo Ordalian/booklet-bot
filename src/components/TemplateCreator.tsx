@@ -65,8 +65,12 @@ const TemplateCreator = () => {
     setPages(prev => prev.map((p, i) => i === pageIndex ? { ...p, images: p.images.filter((_, j) => j !== imgIndex) } : p));
   };
 
+  const sanitizeFilename = (name: string) =>
+    name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+
   const uploadFile = async (file: File, path: string): Promise<string> => {
-    const { data, error } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
+    const safePath = path.split("/").map((seg, i, arr) => i === arr.length - 1 ? sanitizeFilename(seg) : seg).join("/");
+    const { data, error } = await supabase.storage.from("uploads").upload(safePath, file, { upsert: true });
     if (error) throw error;
     const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(data.path);
     return urlData.publicUrl;
