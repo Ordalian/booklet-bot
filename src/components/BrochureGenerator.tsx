@@ -8,9 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Download, Loader2, RefreshCw, Upload, Link as LinkIcon, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import GuidePreview from "@/components/guide/GuidePreview";
-import type { EventsData } from "@/types/events";
-import defaultData from "@/data/events_data.json";
+import BrochurePreview from "@/components/guide/BrochurePreview";
+import type { BrochurePage } from "@/components/guide/BrochurePreview";
 
 const EVENT_CATEGORIES = [
   { id: "culture", label: "Culture et Exposition", color: "hsl(var(--guide-blue))" },
@@ -27,11 +26,9 @@ interface CategorySources {
   additionalInfo: string;
 }
 
-type Template = {
-  id: string;
-  name: string;
-  description: string | null;
-};
+type Template = { id: string; name: string; description: string | null };
+
+const MONTHS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
 const BrochureGenerator = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -41,7 +38,7 @@ const BrochureGenerator = () => {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [categorySources, setCategorySources] = useState<Record<string, CategorySources>>({});
   const [isGenerating, setIsGenerating] = useState(false);
-  const [eventsData, setEventsData] = useState<EventsData | null>(null);
+  const [pages, setPages] = useState<BrochurePage[] | null>(null);
   const guideRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,10 +107,9 @@ const BrochureGenerator = () => {
   const formatDateRange = () => {
     const d1 = new Date(dateDebut);
     const d2 = new Date(dateFin);
-    const months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
     return {
-      moisDebut: months[d1.getMonth()],
-      moisFin: months[d2.getMonth()],
+      moisDebut: MONTHS[d1.getMonth()],
+      moisFin: MONTHS[d2.getMonth()],
       annee: String(d2.getFullYear()),
     };
   };
@@ -122,7 +118,6 @@ const BrochureGenerator = () => {
     if (selectedCategories.size === 0) { toast.error("Sélectionnez au moins une catégorie"); return; }
     setIsGenerating(true);
     try {
-      // Prepare category data with links (files would need upload first)
       const categories: Record<string, { links: string[]; additionalInfo: string }> = {};
       for (const catId of selectedCategories) {
         const src = categorySources[catId];
@@ -133,20 +128,15 @@ const BrochureGenerator = () => {
       }
 
       const { data, error } = await supabase.functions.invoke("generate-brochure", {
-        body: {
-          dateDebut,
-          dateFin,
-          categories,
-          templateId: selectedTemplate || undefined,
-        },
+        body: { dateDebut, dateFin, categories, templateId: selectedTemplate || undefined },
       });
 
       if (error) throw error;
-      if (data?.eventsData) {
-        setEventsData(data.eventsData);
-        toast.success("Brochure générée avec succès !");
+      if (data?.pages?.length) {
+        setPages(data.pages);
+        toast.success(`Brochure générée — ${data.pages.length} pages !`);
       } else {
-        toast.error("Aucune donnée reçue");
+        toast.error("Aucune page générée");
       }
     } catch (err: any) {
       console.error(err);
@@ -161,9 +151,9 @@ const BrochureGenerator = () => {
     toast.info("Génération du PDF en cours...");
     try {
       const html2pdf = (await import("html2pdf.js")).default;
-      const pages = guideRef.current.querySelectorAll('.guide-page');
+      const pageEls = guideRef.current.querySelectorAll('.guide-page');
       const container = document.createElement('div');
-      pages.forEach(p => container.appendChild(p.cloneNode(true)));
+      pageEls.forEach(p => container.appendChild(p.cloneNode(true)));
 
       const { moisDebut, moisFin, annee } = formatDateRange();
       await html2pdf().set({
@@ -185,9 +175,8 @@ const BrochureGenerator = () => {
 
   return (
     <div className="flex gap-6">
-      {/* Left panel - form */}
+      {/* Left panel */}
       <aside className="w-96 flex-shrink-0 space-y-5 sticky top-20 self-start max-h-[calc(100vh-6rem)] overflow-y-auto pr-2">
-        {/* Date + Template selection */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg" style={{ fontFamily: 'Montserrat' }}>Paramètres</CardTitle>
@@ -227,7 +216,6 @@ const BrochureGenerator = () => {
           </CardContent>
         </Card>
 
-        {/* Categories */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg" style={{ fontFamily: 'Montserrat' }}>Types d'événements</CardTitle>
@@ -236,45 +224,27 @@ const BrochureGenerator = () => {
             {EVENT_CATEGORIES.map(cat => (
               <div key={cat.id}>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <Checkbox
-                    checked={selectedCategories.has(cat.id)}
-                    onCheckedChange={() => toggleCategory(cat.id)}
-                  />
+                  <Checkbox checked={selectedCategories.has(cat.id)} onCheckedChange={() => toggleCategory(cat.id)} />
                   <span className="text-sm font-medium" style={{ color: cat.color }}>{cat.label}</span>
                 </label>
 
                 {selectedCategories.has(cat.id) && categorySources[cat.id] && (
                   <div className="ml-6 mt-2 space-y-2 border-l-2 pl-3 pb-2" style={{ borderColor: cat.color }}>
-                    {/* Links */}
                     <div>
-                      <label className="text-xs font-semibold flex items-center gap-1">
-                        <LinkIcon className="w-3 h-3" /> Liens web
-                      </label>
+                      <label className="text-xs font-semibold flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Liens web</label>
                       {categorySources[cat.id].links.map((link, li) => (
                         <div key={li} className="flex gap-1 mt-1">
-                          <Input
-                            value={link}
-                            onChange={e => updateCategoryLink(cat.id, li, e.target.value)}
-                            placeholder="https://..."
-                            className="text-xs h-8"
-                          />
+                          <Input value={link} onChange={e => updateCategoryLink(cat.id, li, e.target.value)} placeholder="https://..." className="text-xs h-8" />
                           {categorySources[cat.id].links.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeCategoryLink(cat.id, li)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeCategoryLink(cat.id, li)}><Trash2 className="w-3 h-3" /></Button>
                           )}
                         </div>
                       ))}
-                      <Button variant="ghost" size="sm" className="text-xs mt-1 h-7" onClick={() => addCategoryLink(cat.id)}>
-                        <Plus className="w-3 h-3 mr-1" />Ajouter un lien
-                      </Button>
+                      <Button variant="ghost" size="sm" className="text-xs mt-1 h-7" onClick={() => addCategoryLink(cat.id)}><Plus className="w-3 h-3 mr-1" />Ajouter un lien</Button>
                     </div>
 
-                    {/* PDFs */}
                     <div>
-                      <label className="text-xs font-semibold flex items-center gap-1">
-                        <Upload className="w-3 h-3" /> PDFs / Documents
-                      </label>
+                      <label className="text-xs font-semibold flex items-center gap-1"><Upload className="w-3 h-3" /> PDFs / Documents</label>
                       <div className="border border-dashed border-border rounded p-2 text-center cursor-pointer hover:border-primary/50 transition-colors relative mt-1">
                         <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e => handleCategoryFiles(cat.id, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
                         <p className="text-[10px] text-muted-foreground">PDF, JPG, PNG</p>
@@ -287,16 +257,9 @@ const BrochureGenerator = () => {
                       ))}
                     </div>
 
-                    {/* Additional text */}
                     <div>
                       <label className="text-xs font-semibold">Infos complémentaires</label>
-                      <Textarea
-                        value={categorySources[cat.id].additionalInfo}
-                        onChange={e => updateCategoryInfo(cat.id, e.target.value)}
-                        placeholder="Texte ou infos à copier-coller..."
-                        rows={2}
-                        className="text-xs mt-1"
-                      />
+                      <Textarea value={categorySources[cat.id].additionalInfo} onChange={e => updateCategoryInfo(cat.id, e.target.value)} placeholder="Texte ou infos à copier-coller..." rows={2} className="text-xs mt-1" />
                     </div>
                   </div>
                 )}
@@ -305,35 +268,22 @@ const BrochureGenerator = () => {
           </CardContent>
         </Card>
 
-        {/* Actions */}
         <div className="flex flex-col gap-3">
-          <Button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="w-full text-white font-bold"
-            style={{ background: 'hsl(var(--guide-orange))', fontFamily: 'Montserrat' }}
-            size="lg"
-          >
+          <Button onClick={handleGenerate} disabled={isGenerating} className="w-full text-white font-bold" style={{ background: 'hsl(var(--guide-orange))', fontFamily: 'Montserrat' }} size="lg">
             {isGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Génération en cours…</> : <><RefreshCw className="w-4 h-4 mr-2" />Générer la brochure</>}
           </Button>
-          {eventsData && (
-            <Button
-              onClick={handleDownload}
-              variant="outline"
-              className="w-full font-bold"
-              style={{ fontFamily: 'Montserrat', borderColor: 'hsl(var(--guide-blue))', color: 'hsl(var(--guide-blue))' }}
-              size="lg"
-            >
+          {pages && (
+            <Button onClick={handleDownload} variant="outline" className="w-full font-bold" style={{ fontFamily: 'Montserrat', borderColor: 'hsl(var(--guide-blue))', color: 'hsl(var(--guide-blue))' }} size="lg">
               <Download className="w-4 h-4 mr-2" />Télécharger PDF
             </Button>
           )}
         </div>
       </aside>
 
-      {/* Right panel - preview */}
+      {/* Right panel */}
       <main className="flex-1 overflow-x-auto">
-        {eventsData ? (
-          <GuidePreview data={eventsData} guideRef={guideRef} />
+        {pages ? (
+          <BrochurePreview pages={pages} guideRef={guideRef} />
         ) : (
           <div className="flex items-center justify-center h-96 text-muted-foreground">
             <div className="text-center">
