@@ -14,7 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      template_pages: {
+        Row: {
+          content_instructions: string | null
+          created_at: string
+          id: string
+          image_urls: string[] | null
+          layout_description: string | null
+          page_number: number
+          template_id: string
+          title: string | null
+        }
+        Insert: {
+          content_instructions?: string | null
+          created_at?: string
+          id?: string
+          image_urls?: string[] | null
+          layout_description?: string | null
+          page_number: number
+          template_id: string
+          title?: string | null
+        }
+        Update: {
+          content_instructions?: string | null
+          created_at?: string
+          id?: string
+          image_urls?: string[] | null
+          layout_description?: string | null
+          page_number?: number
+          template_id?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_pages_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      templates: {
+        Row: {
+          accueil_horaires: Json | null
+          charter_pdfs: string[] | null
+          contact_info: Json | null
+          created_at: string
+          description: string | null
+          dynamic_insert_after: number
+          fixed_pages_count: number
+          id: string
+          logo_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          accueil_horaires?: Json | null
+          charter_pdfs?: string[] | null
+          contact_info?: Json | null
+          created_at?: string
+          description?: string | null
+          dynamic_insert_after?: number
+          fixed_pages_count?: number
+          id?: string
+          logo_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          accueil_horaires?: Json | null
+          charter_pdfs?: string[] | null
+          contact_info?: Json | null
+          created_at?: string
+          description?: string | null
+          dynamic_insert_after?: number
+          fixed_pages_count?: number
+          id?: string
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
