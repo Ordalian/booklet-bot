@@ -399,6 +399,8 @@ const BrochureGenerator = () => {
             categories={liveCategories}
             templatePages={templatePages}
             dynamicInsertAfter={dynamicInsertAfter}
+            contactInfo={selectedTpl?.contact_info || {}}
+            accueilHoraires={(selectedTpl as any)?.accueil_horaires || {}}
           />
         )}
       </main>
