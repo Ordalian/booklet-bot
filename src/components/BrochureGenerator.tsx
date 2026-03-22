@@ -203,12 +203,14 @@ const BrochureGenerator = () => {
     return { moisDebut: MONTHS[d1.getMonth()], moisFin: MONTHS[d2.getMonth()], annee: String(d2.getFullYear()) };
   };
 
-  // Build live preview categories
+  // Build live preview categories with scraped events
   const liveCategories = useMemo(() => {
     return EVENT_CATEGORIES
       .filter(cat => selectedCategories.has(cat.id))
       .map(cat => {
         const src = categorySources[cat.id];
+        const catEvents = scrapedEvents[cat.id] || {};
+        const allEvents: ScrapedEvent[] = Object.values(catEvents).flat();
         return {
           id: cat.id,
           label: cat.label,
@@ -216,9 +218,10 @@ const BrochureGenerator = () => {
           links: src?.links || [],
           additionalInfo: src?.additionalInfo || "",
           fileCount: src?.files.length || 0,
+          events: allEvents,
         };
       });
-  }, [selectedCategories, categorySources]);
+  }, [selectedCategories, categorySources, scrapedEvents]);
 
   const selectedTpl = templates.find(t => t.id === selectedTemplate);
   const dynamicInsertAfter = selectedTpl?.dynamic_insert_after || 1;
