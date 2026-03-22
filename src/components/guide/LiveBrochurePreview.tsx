@@ -1,4 +1,5 @@
 import React from "react";
+import type { ScrapedEvent } from "@/components/BrochureGenerator";
 
 const A4_W = 794;
 const A4_H = 1123;
@@ -16,6 +17,7 @@ interface CategoryInfo {
   links: string[];
   additionalInfo: string;
   fileCount: number;
+  events: ScrapedEvent[];
 }
 
 interface TemplatePage {
