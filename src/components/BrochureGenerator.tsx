@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Loader2, RefreshCw, Upload, Link as LinkIcon, Plus, Trash2, Palette } from "lucide-react";
+import { Download, Loader2, RefreshCw, Upload, Link as LinkIcon, Plus, Trash2, Palette, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BrochurePreview from "@/components/guide/BrochurePreview";
