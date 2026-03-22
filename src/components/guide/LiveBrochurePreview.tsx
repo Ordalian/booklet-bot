@@ -228,10 +228,9 @@ const DynamicPagesPreview = ({ categories, brand, contactInfo, accueilHoraires }
   );
 };
 
-const LiveBrochurePreview = ({ dateDebut, dateFin, brand, categories, templatePages, dynamicInsertAfter }: LiveBrochurePreviewProps) => {
+const LiveBrochurePreview = ({ dateDebut, dateFin, brand, categories, templatePages, dynamicInsertAfter, contactInfo, accueilHoraires }: LiveBrochurePreviewProps) => {
   const pagesBefore = templatePages.filter(p => p.page_number <= dynamicInsertAfter);
   const pagesAfter = templatePages.filter(p => p.page_number > dynamicInsertAfter);
-  const activeCategories = categories.filter(c => c.links.some(l => l.trim()) || c.additionalInfo.trim() || c.fileCount > 0);
 
   return (
     <div className="flex flex-col items-center gap-4 py-4">
@@ -249,23 +248,25 @@ const LiveBrochurePreview = ({ dateDebut, dateFin, brand, categories, templatePa
 
       {/* Dynamic event pages */}
       {categories.length > 0 && (
-        <div style={{ width: A4_W * SCALE, height: A4_H * SCALE, overflow: "hidden", position: "relative" }}>
-          <DynamicPagesPreview categories={categories} brand={brand} />
-          {/* Dynamic badge */}
-          <div style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            background: brand.colors[1] || "#0077B6",
-            color: "#fff",
-            fontSize: 9,
-            fontWeight: 700,
-            padding: "3px 10px",
-            borderRadius: 12,
-            letterSpacing: 0.3,
-          }}>
-            PAGES DYNAMIQUES
-          </div>
+        <div className="flex flex-col items-center gap-4">
+          {(() => {
+            const dynPages: CategoryInfo[][] = [];
+            for (let i = 0; i < categories.length; i += 3) {
+              dynPages.push(categories.slice(i, i + 3));
+            }
+            return dynPages.map((_, pageIdx) => (
+              <div key={`dyn-${pageIdx}`} style={{ width: A4_W * SCALE, height: A4_H * SCALE, overflow: "hidden", position: "relative" }}>
+                <DynamicPagesPreview categories={categories.slice(pageIdx * 3, pageIdx * 3 + 3)} brand={brand} contactInfo={contactInfo} accueilHoraires={accueilHoraires} />
+                <div style={{
+                  position: "absolute", top: 8, right: 8,
+                  background: brand.colors[1] || "#0077B6", color: "#fff",
+                  fontSize: 9, fontWeight: 700, padding: "3px 10px", borderRadius: 12, letterSpacing: 0.3,
+                }}>
+                  PAGE DYNAMIQUE {pageIdx + 1}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
       )}
 
