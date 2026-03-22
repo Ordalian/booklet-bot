@@ -50,7 +50,7 @@
     "embla-carousel-react": "^8.6.0",
     "html2pdf.js": "0.10.2",
     "input-otp": "^1.4.2",
-    "konva": "^10.2.3",
+    "konva": "9.3.22",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
