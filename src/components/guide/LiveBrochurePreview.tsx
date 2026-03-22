@@ -33,6 +33,8 @@ interface LiveBrochurePreviewProps {
   categories: CategoryInfo[];
   templatePages: TemplatePage[];
   dynamicInsertAfter: number;
+  contactInfo?: Record<string, any>;
+  accueilHoraires?: Record<string, any>;
 }
 
 const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
@@ -65,6 +67,7 @@ const CoverPage = ({ brand, dateDebut, dateFin }: { brand: BrandColors; dateDebu
   const d2 = new Date(dateFin);
   const primary = brand.colors[0] || "#E85D04";
   const secondary = brand.colors[1] || "#0077B6";
+  const dateRange = `${String(d1.getDate()).padStart(2,'0')}/${String(d1.getMonth()+1).padStart(2,'0')} au ${String(d2.getDate()).padStart(2,'0')}/${String(d2.getMonth()+1).padStart(2,'0')} ${d2.getFullYear()}`;
 
   return (
     <PageShell brand={brand}>
@@ -75,7 +78,7 @@ const CoverPage = ({ brand, dateDebut, dateFin }: { brand: BrandColors; dateDebu
             Guide des Animations
           </h1>
           <p style={{ fontSize: 28, fontWeight: 600, color: secondary, marginTop: 16, lineHeight: 1.2 }}>
-            {MONTHS[d1.getMonth()]} – {MONTHS[d2.getMonth()]} {d2.getFullYear()}
+            {dateRange}
           </p>
         </div>
         <div style={{ marginTop: 40, display: "flex", gap: 12 }}>
@@ -116,7 +119,27 @@ const FixedPage = ({ page, brand }: { page: TemplatePage; brand: BrandColors }) 
   );
 };
 
-const DynamicPagesPreview = ({ categories, brand }: { categories: CategoryInfo[]; brand: BrandColors }) => {
+const ContactBanner = ({ isOdd, brand, contactInfo, accueilHoraires }: { isOdd: boolean; brand: BrandColors; contactInfo?: Record<string, any>; accueilHoraires?: Record<string, any> }) => {
+  const bgColor = brand.colors[0] || "#E85D04";
+  const label = isOdd ? "Points d'accueil" : "Horaires & Contact";
+  const data = isOdd ? accueilHoraires : contactInfo;
+  const summary = data ? Object.entries(data).map(([k, v]) => `${k}: ${v}`).join(" • ") : "Non renseigné";
+
+  return (
+    <div style={{
+      position: "absolute", bottom: 0, left: 0, right: 0, height: 70,
+      background: bgColor, color: "#fff", display: "flex", alignItems: "center",
+      padding: "0 40px", fontSize: 10, fontFamily: "Arial, sans-serif",
+    }}>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+        <div style={{ opacity: 0.9, lineHeight: 1.4 }}>{summary.substring(0, 120)}</div>
+      </div>
+    </div>
+  );
+};
+
+const DynamicPagesPreview = ({ categories, brand, contactInfo, accueilHoraires }: { categories: CategoryInfo[]; brand: BrandColors; contactInfo?: Record<string, any>; accueilHoraires?: Record<string, any> }) => {
   if (categories.length === 0) return null;
   const primary = brand.colors[0] || "#E85D04";
   const secondary = brand.colors[1] || "#0077B6";
@@ -124,97 +147,90 @@ const DynamicPagesPreview = ({ categories, brand }: { categories: CategoryInfo[]
 
   const catColors = [primary, secondary, accent, brand.colors[3] || "#E8A838", brand.colors[4] || "#9B59B6"];
 
+  // Split categories into pages to avoid overflow — max ~3 categories per page
+  const pages: CategoryInfo[][] = [];
+  for (let i = 0; i < categories.length; i += 3) {
+    pages.push(categories.slice(i, i + 3));
+  }
+
   return (
-    <PageShell brand={brand}>
-      <div style={{ padding: "36px 44px" }}>
-        <h2 style={{ fontSize: 24, fontWeight: 700, color: primary, marginBottom: 8 }}>Événements</h2>
-        <div style={{ height: 3, width: 60, background: primary, borderRadius: 2, marginBottom: 24 }} />
+    <>
+      {pages.map((pageCats, pageIdx) => (
+        <PageShell key={pageIdx} brand={brand}>
+          <div style={{ padding: "36px 40px", paddingBottom: 80 }}>
+            <h2 style={{ fontSize: 24, fontWeight: 700, color: primary, marginBottom: 8 }}>Événements</h2>
+            <div style={{ height: 3, width: 60, background: primary, borderRadius: 2, marginBottom: 24 }} />
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {categories.map((cat, ci) => {
-            const cc = catColors[ci % catColors.length];
-            const hasContent = cat.links.filter(l => l.trim()).length > 0 || cat.additionalInfo.trim() || cat.fileCount > 0;
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {pageCats.map((cat, ci) => {
+                const globalIdx = pageIdx * 3 + ci;
+                const cc = catColors[globalIdx % catColors.length];
+                const hasContent = cat.links.filter(l => l.trim()).length > 0 || cat.additionalInfo.trim() || cat.fileCount > 0;
 
-            return (
-              <div key={cat.id} style={{ borderLeft: `4px solid ${cc}`, paddingLeft: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: cc }} />
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: cc, margin: 0 }}>{cat.label}</h3>
-                </div>
+                return (
+                  <div key={cat.id} style={{ borderLeft: `4px solid ${cc}`, paddingLeft: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: cc }} />
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: cc, margin: 0 }}>{cat.label}</h3>
+                    </div>
 
-                {hasContent ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    {/* Simulated event cards based on sources */}
-                    {cat.links.filter(l => l.trim()).map((link, li) => (
-                      <div key={li} style={{
-                        background: `${cc}0A`,
-                        borderRadius: 8,
-                        padding: "10px 14px",
-                        border: `1px solid ${cc}20`,
-                      }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
-                          Source web {li + 1}
-                        </div>
-                        <div style={{ fontSize: 11, color: "#444", lineHeight: 1.5 }}>
-                          Événements extraits de cette source seront affichés ici avec dates, lieux et descriptions.
-                        </div>
-                        <div style={{ fontSize: 9, color: "#999", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          🔗 {link.replace(/https?:\/\//, '').substring(0, 40)}…
-                        </div>
+                    {hasContent ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {cat.links.filter(l => l.trim()).map((link, li) => (
+                          <div key={li} style={{
+                            background: `${cc}0A`, borderRadius: 8, padding: "10px 14px", border: `1px solid ${cc}20`,
+                          }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+                              Source web {li + 1}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#444", lineHeight: 1.5 }}>
+                              Événements extraits de cette source
+                            </div>
+                            <div style={{ fontSize: 9, color: "#999", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              🔗 {link.replace(/https?:\/\//, '').substring(0, 40)}…
+                            </div>
+                          </div>
+                        ))}
+                        {cat.additionalInfo.trim() && (
+                          <div style={{
+                            background: `${cc}0A`, borderRadius: 8, padding: "10px 14px", border: `1px solid ${cc}20`,
+                            gridColumn: cat.links.filter(l => l.trim()).length === 0 ? "span 2" : undefined,
+                          }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Directives</div>
+                            <div style={{ fontSize: 11, color: "#444", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                              {cat.additionalInfo.substring(0, 120)}{cat.additionalInfo.length > 120 ? "…" : ""}
+                            </div>
+                          </div>
+                        )}
+                        {cat.fileCount > 0 && (
+                          <div style={{ background: `${cc}0A`, borderRadius: 8, padding: "10px 14px", border: `1px solid ${cc}20` }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>📄 Documents</div>
+                            <div style={{ fontSize: 11, color: "#444" }}>{cat.fileCount} fichier{cat.fileCount > 1 ? "s" : ""}</div>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    {cat.additionalInfo.trim() && (
-                      <div style={{
-                        background: `${cc}0A`,
-                        borderRadius: 8,
-                        padding: "10px 14px",
-                        border: `1px solid ${cc}20`,
-                        gridColumn: cat.links.filter(l => l.trim()).length === 0 ? "span 2" : undefined,
-                      }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
-                          Directives
-                        </div>
-                        <div style={{ fontSize: 11, color: "#444", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-                          {cat.additionalInfo.substring(0, 120)}{cat.additionalInfo.length > 120 ? "…" : ""}
-                        </div>
-                      </div>
-                    )}
-                    {cat.fileCount > 0 && (
-                      <div style={{
-                        background: `${cc}0A`,
-                        borderRadius: 8,
-                        padding: "10px 14px",
-                        border: `1px solid ${cc}20`,
-                      }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
-                          📄 Documents
-                        </div>
-                        <div style={{ fontSize: 11, color: "#444" }}>
-                          {cat.fileCount} fichier{cat.fileCount > 1 ? "s" : ""} à analyser
-                        </div>
+                    ) : (
+                      <div style={{ padding: "12px 16px", background: "#f8f8f8", borderRadius: 8, textAlign: "center" }}>
+                        <p style={{ fontSize: 11, color: "#aaa", fontStyle: "italic" }}>
+                          Ajoutez des liens, fichiers ou directives
+                        </p>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div style={{ padding: "12px 16px", background: "#f8f8f8", borderRadius: 8, textAlign: "center" }}>
-                    <p style={{ fontSize: 11, color: "#aaa", fontStyle: "italic" }}>
-                      Ajoutez des liens, fichiers ou directives pour alimenter cette section
-                    </p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </PageShell>
+                );
+              })}
+            </div>
+          </div>
+          <ContactBanner isOdd={pageIdx % 2 === 0} brand={brand} contactInfo={contactInfo} accueilHoraires={accueilHoraires} />
+        </PageShell>
+      ))}
+    </>
   );
 };
 
-const LiveBrochurePreview = ({ dateDebut, dateFin, brand, categories, templatePages, dynamicInsertAfter }: LiveBrochurePreviewProps) => {
+const LiveBrochurePreview = ({ dateDebut, dateFin, brand, categories, templatePages, dynamicInsertAfter, contactInfo, accueilHoraires }: LiveBrochurePreviewProps) => {
   const pagesBefore = templatePages.filter(p => p.page_number <= dynamicInsertAfter);
   const pagesAfter = templatePages.filter(p => p.page_number > dynamicInsertAfter);
-  const activeCategories = categories.filter(c => c.links.some(l => l.trim()) || c.additionalInfo.trim() || c.fileCount > 0);
 
   return (
     <div className="flex flex-col items-center gap-4 py-4">
@@ -232,23 +248,25 @@ const LiveBrochurePreview = ({ dateDebut, dateFin, brand, categories, templatePa
 
       {/* Dynamic event pages */}
       {categories.length > 0 && (
-        <div style={{ width: A4_W * SCALE, height: A4_H * SCALE, overflow: "hidden", position: "relative" }}>
-          <DynamicPagesPreview categories={categories} brand={brand} />
-          {/* Dynamic badge */}
-          <div style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            background: brand.colors[1] || "#0077B6",
-            color: "#fff",
-            fontSize: 9,
-            fontWeight: 700,
-            padding: "3px 10px",
-            borderRadius: 12,
-            letterSpacing: 0.3,
-          }}>
-            PAGES DYNAMIQUES
-          </div>
+        <div className="flex flex-col items-center gap-4">
+          {(() => {
+            const dynPages: CategoryInfo[][] = [];
+            for (let i = 0; i < categories.length; i += 3) {
+              dynPages.push(categories.slice(i, i + 3));
+            }
+            return dynPages.map((_, pageIdx) => (
+              <div key={`dyn-${pageIdx}`} style={{ width: A4_W * SCALE, height: A4_H * SCALE, overflow: "hidden", position: "relative" }}>
+                <DynamicPagesPreview categories={categories.slice(pageIdx * 3, pageIdx * 3 + 3)} brand={brand} contactInfo={contactInfo} accueilHoraires={accueilHoraires} />
+                <div style={{
+                  position: "absolute", top: 8, right: 8,
+                  background: brand.colors[1] || "#0077B6", color: "#fff",
+                  fontSize: 9, fontWeight: 700, padding: "3px 10px", borderRadius: 12, letterSpacing: 0.3,
+                }}>
+                  PAGE DYNAMIQUE {pageIdx + 1}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
       )}
 

@@ -33,6 +33,7 @@ type Template = {
   description: string | null;
   logo_url: string | null;
   contact_info: any;
+  accueil_horaires: any;
   dynamic_insert_after: number;
   fixed_pages_count: number;
 };
@@ -67,7 +68,7 @@ const BrochureGenerator = () => {
 
   // Fetch templates
   useEffect(() => {
-    supabase.from("templates").select("id, name, description, logo_url, contact_info, dynamic_insert_after, fixed_pages_count")
+    supabase.from("templates").select("id, name, description, logo_url, contact_info, accueil_horaires, dynamic_insert_after, fixed_pages_count")
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setTemplates(data); });
   }, []);
@@ -189,7 +190,13 @@ const BrochureGenerator = () => {
       }
 
       const { data, error } = await supabase.functions.invoke("generate-brochure", {
-        body: { dateDebut, dateFin, categories, templateId: selectedTemplate || undefined },
+        body: {
+          dateDebut, dateFin, categories,
+          templateId: selectedTemplate || undefined,
+          brand,
+          contactInfo: selectedTpl?.contact_info || {},
+          accueilHoraires: (selectedTpl as any)?.accueil_horaires || {},
+        },
       });
 
       if (error) throw error;
@@ -393,6 +400,8 @@ const BrochureGenerator = () => {
             categories={liveCategories}
             templatePages={templatePages}
             dynamicInsertAfter={dynamicInsertAfter}
+            contactInfo={selectedTpl?.contact_info || {}}
+            accueilHoraires={(selectedTpl as any)?.accueil_horaires || {}}
           />
         )}
       </main>
