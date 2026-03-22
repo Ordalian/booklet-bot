@@ -381,14 +381,40 @@ const BrochureGenerator = () => {
                   <div className="ml-6 mt-2 space-y-2 border-l-2 pl-3 pb-2" style={{ borderColor: cat.color }}>
                     <div>
                       <label className="text-xs font-semibold flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Liens web</label>
-                      {categorySources[cat.id].links.map((link, li) => (
-                        <div key={li} className="flex gap-1 mt-1">
-                          <Input value={link} onChange={e => updateCategoryLink(cat.id, li, e.target.value)} placeholder="https://..." className="text-xs h-8" />
-                          {categorySources[cat.id].links.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeCategoryLink(cat.id, li)}><Trash2 className="w-3 h-3" /></Button>
-                          )}
-                        </div>
-                      ))}
+                      {categorySources[cat.id].links.map((link, li) => {
+                        const isScraping = scrapingUrls.has(`${cat.id}::${link}`);
+                        const hasResults = scrapedEvents[cat.id]?.[link];
+                        return (
+                          <div key={li} className="mt-1">
+                            <div className="flex gap-1">
+                              <Input value={link} onChange={e => updateCategoryLink(cat.id, li, e.target.value)} placeholder="https://..." className="text-xs h-8" />
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 shrink-0"
+                                disabled={!link.trim().startsWith('http') || isScraping}
+                                onClick={() => scrapeLink(cat.id, link)}
+                                title="Scanner ce lien"
+                              >
+                                {isScraping ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                              </Button>
+                              {categorySources[cat.id].links.length > 1 && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeCategoryLink(cat.id, li)}><Trash2 className="w-3 h-3" /></Button>
+                              )}
+                            </div>
+                            {hasResults && hasResults.length > 0 && (
+                              <div className="ml-2 mt-1 text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                                ✅ {hasResults.length} événement(s) trouvé(s)
+                              </div>
+                            )}
+                            {hasResults && hasResults.length === 0 && (
+                              <div className="ml-2 mt-1 text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                                ⚠️ Aucun événement trouvé
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                       <Button variant="ghost" size="sm" className="text-xs mt-1 h-7" onClick={() => addCategoryLink(cat.id)}><Plus className="w-3 h-3 mr-1" />Ajouter un lien</Button>
                     </div>
 
