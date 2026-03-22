@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Loader2, RefreshCw, Upload, Link as LinkIcon, Plus, Trash2, Palette } from "lucide-react";
+import { Download, Loader2, RefreshCw, Upload, Link as LinkIcon, Plus, Trash2, Palette, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BrochurePreview from "@/components/guide/BrochurePreview";
@@ -20,6 +20,15 @@ const EVENT_CATEGORIES = [
   { id: "spectacles", label: "Spectacles", color: "#9B59B6" },
   { id: "brocantes", label: "Brocantes", color: "#8B7355" },
 ] as const;
+
+export interface ScrapedEvent {
+  title: string;
+  date: string;
+  location: string;
+  description: string;
+  price: string;
+  tags: string[];
+}
 
 interface CategorySources {
   links: string[];
@@ -65,6 +74,41 @@ const BrochureGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pages, setPages] = useState<BrochurePage[] | null>(null);
   const guideRef = useRef<HTMLDivElement>(null);
+  // Scraped events per category per link: { [catId]: { [url]: ScrapedEvent[] } }
+  const [scrapedEvents, setScrapedEvents] = useState<Record<string, Record<string, ScrapedEvent[]>>>({});
+  const [scrapingUrls, setScrapingUrls] = useState<Set<string>>(new Set());
+
+  const scrapeLink = useCallback(async (catId: string, url: string) => {
+    if (!url.trim() || !url.startsWith('http')) return;
+    const key = `${catId}::${url}`;
+    if (scrapingUrls.has(key)) return;
+
+    setScrapingUrls(prev => new Set(prev).add(key));
+    try {
+      const { data, error } = await supabase.functions.invoke("scrape-preview", {
+        body: { url },
+      });
+      if (error) throw error;
+      if (data?.events?.length) {
+        setScrapedEvents(prev => ({
+          ...prev,
+          [catId]: { ...prev[catId], [url]: data.events },
+        }));
+        toast.success(`${data.events.length} événement(s) trouvé(s)`);
+      } else {
+        toast.info("Aucun événement trouvé sur cette page");
+        setScrapedEvents(prev => ({
+          ...prev,
+          [catId]: { ...prev[catId], [url]: [] },
+        }));
+      }
+    } catch (err: any) {
+      console.error('Scrape error:', err);
+      toast.error("Erreur de scraping: " + (err.message || "Erreur"));
+    } finally {
+      setScrapingUrls(prev => { const n = new Set(prev); n.delete(key); return n; });
+    }
+  }, [scrapingUrls]);
 
   // Fetch templates
   useEffect(() => {
@@ -159,12 +203,14 @@ const BrochureGenerator = () => {
     return { moisDebut: MONTHS[d1.getMonth()], moisFin: MONTHS[d2.getMonth()], annee: String(d2.getFullYear()) };
   };
 
-  // Build live preview categories
+  // Build live preview categories with scraped events
   const liveCategories = useMemo(() => {
     return EVENT_CATEGORIES
       .filter(cat => selectedCategories.has(cat.id))
       .map(cat => {
         const src = categorySources[cat.id];
+        const catEvents = scrapedEvents[cat.id] || {};
+        const allEvents: ScrapedEvent[] = Object.values(catEvents).flat();
         return {
           id: cat.id,
           label: cat.label,
@@ -172,9 +218,10 @@ const BrochureGenerator = () => {
           links: src?.links || [],
           additionalInfo: src?.additionalInfo || "",
           fileCount: src?.files.length || 0,
+          events: allEvents,
         };
       });
-  }, [selectedCategories, categorySources]);
+  }, [selectedCategories, categorySources, scrapedEvents]);
 
   const selectedTpl = templates.find(t => t.id === selectedTemplate);
   const dynamicInsertAfter = selectedTpl?.dynamic_insert_after || 1;
@@ -334,14 +381,40 @@ const BrochureGenerator = () => {
                   <div className="ml-6 mt-2 space-y-2 border-l-2 pl-3 pb-2" style={{ borderColor: cat.color }}>
                     <div>
                       <label className="text-xs font-semibold flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Liens web</label>
-                      {categorySources[cat.id].links.map((link, li) => (
-                        <div key={li} className="flex gap-1 mt-1">
-                          <Input value={link} onChange={e => updateCategoryLink(cat.id, li, e.target.value)} placeholder="https://..." className="text-xs h-8" />
-                          {categorySources[cat.id].links.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeCategoryLink(cat.id, li)}><Trash2 className="w-3 h-3" /></Button>
-                          )}
-                        </div>
-                      ))}
+                      {categorySources[cat.id].links.map((link, li) => {
+                        const isScraping = scrapingUrls.has(`${cat.id}::${link}`);
+                        const hasResults = scrapedEvents[cat.id]?.[link];
+                        return (
+                          <div key={li} className="mt-1">
+                            <div className="flex gap-1">
+                              <Input value={link} onChange={e => updateCategoryLink(cat.id, li, e.target.value)} placeholder="https://..." className="text-xs h-8" />
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 shrink-0"
+                                disabled={!link.trim().startsWith('http') || isScraping}
+                                onClick={() => scrapeLink(cat.id, link)}
+                                title="Scanner ce lien"
+                              >
+                                {isScraping ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                              </Button>
+                              {categorySources[cat.id].links.length > 1 && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeCategoryLink(cat.id, li)}><Trash2 className="w-3 h-3" /></Button>
+                              )}
+                            </div>
+                            {hasResults && hasResults.length > 0 && (
+                              <div className="ml-2 mt-1 text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                                ✅ {hasResults.length} événement(s) trouvé(s)
+                              </div>
+                            )}
+                            {hasResults && hasResults.length === 0 && (
+                              <div className="ml-2 mt-1 text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                                ⚠️ Aucun événement trouvé
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                       <Button variant="ghost" size="sm" className="text-xs mt-1 h-7" onClick={() => addCategoryLink(cat.id)}><Plus className="w-3 h-3 mr-1" />Ajouter un lien</Button>
                     </div>
 

@@ -77,6 +77,69 @@ Deno.serve(async (req) => {
           console.error(`Error scraping ${url}:`, e);
         }
       }
+
+      // 2b. Enrichment: search for more details about found events
+      // Extract event names from scraped content and search for additional info
+      if (scrapedContent.length > 0 && LOVABLE_API_KEY) {
+        try {
+          const extractRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash-lite',
+              messages: [
+                { role: 'system', content: 'Extrais les noms/titres d\'événements trouvés dans ce contenu. Retourne un JSON: { "events": ["nom1", "nom2", ...] }. Max 10 événements. Retourne UNIQUEMENT le JSON.' },
+                { role: 'user', content: scrapedContent.join('\n').substring(0, 6000) },
+              ],
+            }),
+          });
+
+          if (extractRes.ok) {
+            const extractData = await extractRes.json();
+            let extractContent = extractData.choices?.[0]?.message?.content || '';
+            extractContent = extractContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+            try {
+              const { events: eventNames } = JSON.parse(extractContent);
+              if (eventNames?.length) {
+                console.log(`Found ${eventNames.length} events to enrich`);
+                // Search for up to 5 events to avoid rate limits
+                for (const name of eventNames.slice(0, 5)) {
+                  try {
+                    const searchRes = await fetch('https://api.firecrawl.dev/v1/search', {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        query: `${name} événement ${dateDebut} ${dateFin}`,
+                        limit: 2,
+                        scrapeOptions: { formats: ['markdown'] },
+                      }),
+                    });
+                    const searchData = await searchRes.json();
+                    if (searchRes.ok && searchData.data?.length) {
+                      for (const result of searchData.data) {
+                        if (result.markdown) {
+                          scrapedContent.push(`=== Enrichissement: ${name} ===\n${result.markdown.substring(0, 2000)}`);
+                        }
+                      }
+                      console.log(`Enriched: ${name}`);
+                    }
+                  } catch (e) {
+                    console.error(`Enrichment search error for ${name}:`, e);
+                  }
+                }
+              }
+            } catch { /* ignore parse errors */ }
+          }
+        } catch (e) {
+          console.error('Enrichment extraction error:', e);
+        }
+      }
     }
 
     // 3. Collect manual info
