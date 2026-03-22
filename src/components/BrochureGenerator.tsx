@@ -21,6 +21,15 @@ const EVENT_CATEGORIES = [
   { id: "brocantes", label: "Brocantes", color: "#8B7355" },
 ] as const;
 
+export interface ScrapedEvent {
+  title: string;
+  date: string;
+  location: string;
+  description: string;
+  price: string;
+  tags: string[];
+}
+
 interface CategorySources {
   links: string[];
   files: File[];
