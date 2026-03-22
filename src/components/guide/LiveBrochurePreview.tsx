@@ -67,6 +67,7 @@ const CoverPage = ({ brand, dateDebut, dateFin }: { brand: BrandColors; dateDebu
   const d2 = new Date(dateFin);
   const primary = brand.colors[0] || "#E85D04";
   const secondary = brand.colors[1] || "#0077B6";
+  const dateRange = `${String(d1.getDate()).padStart(2,'0')}/${String(d1.getMonth()+1).padStart(2,'0')} au ${String(d2.getDate()).padStart(2,'0')}/${String(d2.getMonth()+1).padStart(2,'0')} ${d2.getFullYear()}`;
 
   return (
     <PageShell brand={brand}>
@@ -77,7 +78,7 @@ const CoverPage = ({ brand, dateDebut, dateFin }: { brand: BrandColors; dateDebu
             Guide des Animations
           </h1>
           <p style={{ fontSize: 28, fontWeight: 600, color: secondary, marginTop: 16, lineHeight: 1.2 }}>
-            {MONTHS[d1.getMonth()]} – {MONTHS[d2.getMonth()]} {d2.getFullYear()}
+            {dateRange}
           </p>
         </div>
         <div style={{ marginTop: 40, display: "flex", gap: 12 }}>
