@@ -281,6 +281,7 @@ const DynamicPagesPreview = ({ categories, brand, contactInfo, accueilHoraires }
           </div>
           <ContactBanner isOdd={pageIdx % 2 === 0} brand={brand} contactInfo={contactInfo} accueilHoraires={accueilHoraires} />
         </PageShell>
+        </div>
       ))}
     </>
   );
