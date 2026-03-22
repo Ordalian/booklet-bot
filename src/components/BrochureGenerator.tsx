@@ -189,7 +189,13 @@ const BrochureGenerator = () => {
       }
 
       const { data, error } = await supabase.functions.invoke("generate-brochure", {
-        body: { dateDebut, dateFin, categories, templateId: selectedTemplate || undefined },
+        body: {
+          dateDebut, dateFin, categories,
+          templateId: selectedTemplate || undefined,
+          brand,
+          contactInfo: selectedTpl?.contact_info || {},
+          accueilHoraires: (selectedTpl as any)?.accueil_horaires || {},
+        },
       });
 
       if (error) throw error;

@@ -121,6 +121,15 @@ ${templatePages.map(p => `Page ${p.page_number}: "${p.title}"
     }
 
     // 5. AI prompt to generate full HTML pages
+    // Build contact/accueil data from request or template
+    const resolvedContact = contactInfo || template?.contact_info || {};
+    const resolvedAccueil = accueilHoraires || template?.accueil_horaires || {};
+
+    // Format dates as DD/MM
+    const d1 = new Date(dateDebut);
+    const d2 = new Date(dateFin);
+    const coverDateRange = `${String(d1.getDate()).padStart(2,'0')}/${String(d1.getMonth()+1).padStart(2,'0')} au ${String(d2.getDate()).padStart(2,'0')}/${String(d2.getMonth()+1).padStart(2,'0')} ${d2.getFullYear()}`;
+
     const systemPrompt = `Tu es un designer web expert qui crée des brochures touristiques au format A4 (794px × 1123px).
 
 MISSION: Génère un tableau JSON de pages HTML. Chaque page est un objet avec "html" (le HTML complet de la page) et "type" ("fixed" ou "dynamic").
@@ -129,10 +138,30 @@ RÈGLES DE STYLE:
 - Chaque page DOIT faire exactement 794px de large et 1123px de haut (format A4).
 - Utilise du CSS inline uniquement (pas de <style> ni de classes).
 - Le style doit être professionnel, moderne, inspiré du monde du tourisme.
-${template ? `- Tu DOIS t'inspirer de la charte graphique décrite dans le template. Respecte les couleurs, polices et mise en page indiquées.` : '- Crée un style propre et professionnel avec des couleurs chaudes (orange, bleu, vert).'}
+${template ? `- Tu DOIS t'inspirer UNIQUEMENT du DÉCOR, des COULEURS et des FORMES décrits dans les PDFs de charte graphique du template. NE COPIE PAS le contenu textuel des PDFs — utilise-les UNIQUEMENT comme inspiration visuelle (palette, typographie, formes décoratives, ornements).` : '- Crée un style propre et professionnel.'}
+${brand ? `- Couleurs de marque à utiliser: ${JSON.stringify(brand.colors)}` : ''}
 - Utilise des polices web-safe: Arial, Georgia, Trebuchet MS, Verdana.
 - Chaque page doit avoir overflow: hidden.
 - Les images fournies doivent être utilisées avec des balises <img> et leurs URLs exactes.
+
+PAGE DE COUVERTURE (PAGE 1):
+- La page 1 DOIT afficher en grand et de manière stylée:
+  * Le titre "Guide des Animations" (ou "Guide Animation")
+  * Les dates couvertes au format: "${coverDateRange}"
+- Le style de la couverture doit être impactant et professionnel.
+${brand?.logoUrl ? `- Logo URL à afficher: ${brand.logoUrl}` : ''}
+
+PAGES DYNAMIQUES — RÈGLES CRITIQUES:
+- Le contenu de chaque page dynamique DOIT tenir dans le format A4 (794×1123px) SANS DÉBORDER.
+- Prévois des marges latérales (40px minimum de chaque côté) et du padding vertical.
+- Si le contenu est trop long, CRÉE UNE NOUVELLE PAGE plutôt que de déborder.
+
+BANDEAUX DE CONTACT SUR LES PAGES DYNAMIQUES:
+- Sur chaque page dynamique IMPAIRE (1ère, 3ème, 5ème page dynamique...): ajoute un bandeau en bas avec les POINTS D'ACCUEIL.
+  Points d'accueil: ${JSON.stringify(resolvedAccueil)}
+- Sur chaque page dynamique PAIRE (2ème, 4ème, 6ème page dynamique...): ajoute un bandeau en bas avec les HORAIRES et CONTACT.
+  Contact/Horaires: ${JSON.stringify(resolvedContact)}
+- Le bandeau doit faire ~80px de haut, avec un fond coloré (couleur de marque), texte blanc, en bas de page.
 
 STRUCTURE:
 ${template ? `
@@ -146,18 +175,15 @@ Les pages fixes avant la position d'insertion viennent EN PREMIER, puis les page
 Crée une page de couverture, puis les pages d'événements, puis une page de contact/fin.
 `}
 
-PAGES DYNAMIQUES:
+PAGES DYNAMIQUES — CONTENU:
 - Crée autant de pages A4 que nécessaire pour afficher TOUS les événements trouvés.
-- Chaque page d'événements doit bien remplir l'espace A4 sans déborder.
-- Organise par catégorie avec des titres de section.
+- Organise par catégorie avec des titres de section visuellement distincts.
 - Affiche: titre, dates, lieu, description, prix, tags (gratuit/payant/famille).
+- Présente les événements sous forme de cartes visuelles attrayantes, PAS comme une simple liste.
 - NE JAMAIS inventer d'événement. Utilise UNIQUEMENT les données fournies.
 
-${template?.logo_url ? `Logo URL: ${template.logo_url}` : ''}
-${template?.contact_info ? `Contact: ${JSON.stringify(template.contact_info)}` : ''}
-
 FORMAT DE SORTIE (JSON strict, rien d'autre):
-{ "pages": [ { "html": "<div style=\\"width:794px;height:1123px;...\\">...</div>", "type": "fixed|dynamic" } ] }
+{ "pages": [ { "html": "<div style=\\"width:794px;height:1123px;overflow:hidden;...\\">...</div>", "type": "fixed|dynamic" } ] }
 
 IMPORTANT: Retourne UNIQUEMENT le JSON, sans markdown, sans commentaire, sans backticks.`;
 
