@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { dateDebut, dateFin, categories, templateId } = await req.json();
+    const { dateDebut, dateFin, categories, templateId, brand, contactInfo, accueilHoraires } = await req.json();
 
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
