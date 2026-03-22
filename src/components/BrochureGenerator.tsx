@@ -68,7 +68,7 @@ const BrochureGenerator = () => {
 
   // Fetch templates
   useEffect(() => {
-    supabase.from("templates").select("id, name, description, logo_url, contact_info, dynamic_insert_after, fixed_pages_count")
+    supabase.from("templates").select("id, name, description, logo_url, contact_info, accueil_horaires, dynamic_insert_after, fixed_pages_count")
       .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setTemplates(data); });
   }, []);
