@@ -102,7 +102,7 @@ const TemplateCreator = () => {
         name,
         description,
         logo_url: logoUrl,
-        contact_info: { ...contactInfo, horaires, points_accueil: pointsAccueil, brand: brandConfig },
+        contact_info: { ...contactInfo, horaires, points_accueil: pointsAccueil, brand: brandConfig } as any,
         accueil_horaires: { horaires, points_accueil: pointsAccueil },
         fixed_pages_count: fixedPagesCount,
         dynamic_insert_after: dynamicInsertAfter,
