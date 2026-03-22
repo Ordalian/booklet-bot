@@ -33,6 +33,8 @@ interface LiveBrochurePreviewProps {
   categories: CategoryInfo[];
   templatePages: TemplatePage[];
   dynamicInsertAfter: number;
+  contactInfo?: Record<string, any>;
+  accueilHoraires?: Record<string, any>;
 }
 
 const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
