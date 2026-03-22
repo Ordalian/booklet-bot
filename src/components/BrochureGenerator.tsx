@@ -1,20 +1,21 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Loader2, RefreshCw, Upload, Link as LinkIcon, Plus, Trash2 } from "lucide-react";
+import { Download, Loader2, RefreshCw, Upload, Link as LinkIcon, Plus, Trash2, Palette } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BrochurePreview from "@/components/guide/BrochurePreview";
+import LiveBrochurePreview from "@/components/guide/LiveBrochurePreview";
 import type { BrochurePage } from "@/components/guide/BrochurePreview";
 
 const EVENT_CATEGORIES = [
-  { id: "culture", label: "Culture et Exposition", color: "hsl(var(--guide-blue))" },
-  { id: "evenementiel", label: "Événementiel", color: "hsl(var(--guide-orange))" },
-  { id: "nature", label: "Nature", color: "hsl(var(--guide-green))" },
+  { id: "culture", label: "Culture et Exposition", color: "#2563eb" },
+  { id: "evenementiel", label: "Événementiel", color: "#E85D04" },
+  { id: "nature", label: "Nature", color: "#16a34a" },
   { id: "famille", label: "Famille et enfants", color: "#E8A838" },
   { id: "spectacles", label: "Spectacles", color: "#9B59B6" },
   { id: "brocantes", label: "Brocantes", color: "#8B7355" },
@@ -26,13 +27,36 @@ interface CategorySources {
   additionalInfo: string;
 }
 
-type Template = { id: string; name: string; description: string | null };
+type Template = {
+  id: string;
+  name: string;
+  description: string | null;
+  logo_url: string | null;
+  contact_info: any;
+  dynamic_insert_after: number;
+  fixed_pages_count: number;
+};
+
+type TemplatePage = {
+  page_number: number;
+  title: string | null;
+  content_instructions: string | null;
+  layout_description: string | null;
+  image_urls: string[] | null;
+};
 
 const MONTHS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+
+const DEFAULT_BRAND = {
+  colors: ["#E85D04", "#0077B6", "#2D6A4F", "#FFFFFF", "#1A1A2E"],
+  logoUrl: "",
+};
 
 const BrochureGenerator = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [templatePages, setTemplatePages] = useState<TemplatePage[]>([]);
+  const [brand, setBrand] = useState(DEFAULT_BRAND);
   const [dateDebut, setDateDebut] = useState("2026-03-29");
   const [dateFin, setDateFin] = useState("2026-04-30");
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
@@ -41,10 +65,34 @@ const BrochureGenerator = () => {
   const [pages, setPages] = useState<BrochurePage[] | null>(null);
   const guideRef = useRef<HTMLDivElement>(null);
 
+  // Fetch templates
   useEffect(() => {
-    supabase.from("templates").select("id, name, description").order("created_at", { ascending: false })
+    supabase.from("templates").select("id, name, description, logo_url, contact_info, dynamic_insert_after, fixed_pages_count")
+      .order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setTemplates(data); });
   }, []);
+
+  // Fetch template pages & brand when template changes
+  useEffect(() => {
+    if (!selectedTemplate) {
+      setTemplatePages([]);
+      setBrand(DEFAULT_BRAND);
+      return;
+    }
+    const tpl = templates.find(t => t.id === selectedTemplate);
+    if (tpl) {
+      const tplBrand = tpl.contact_info?.brand;
+      setBrand({
+        colors: tplBrand?.colors || DEFAULT_BRAND.colors,
+        logoUrl: tplBrand?.logoUrl || tpl.logo_url || "",
+      });
+    }
+    supabase.from("template_pages")
+      .select("page_number, title, content_instructions, layout_description, image_urls")
+      .eq("template_id", selectedTemplate)
+      .order("page_number", { ascending: true })
+      .then(({ data }) => { if (data) setTemplatePages(data); });
+  }, [selectedTemplate, templates]);
 
   const toggleCategory = (id: string) => {
     setSelectedCategories(prev => {
@@ -107,12 +155,28 @@ const BrochureGenerator = () => {
   const formatDateRange = () => {
     const d1 = new Date(dateDebut);
     const d2 = new Date(dateFin);
-    return {
-      moisDebut: MONTHS[d1.getMonth()],
-      moisFin: MONTHS[d2.getMonth()],
-      annee: String(d2.getFullYear()),
-    };
+    return { moisDebut: MONTHS[d1.getMonth()], moisFin: MONTHS[d2.getMonth()], annee: String(d2.getFullYear()) };
   };
+
+  // Build live preview categories
+  const liveCategories = useMemo(() => {
+    return EVENT_CATEGORIES
+      .filter(cat => selectedCategories.has(cat.id))
+      .map(cat => {
+        const src = categorySources[cat.id];
+        return {
+          id: cat.id,
+          label: cat.label,
+          color: cat.color,
+          links: src?.links || [],
+          additionalInfo: src?.additionalInfo || "",
+          fileCount: src?.files.length || 0,
+        };
+      });
+  }, [selectedCategories, categorySources]);
+
+  const selectedTpl = templates.find(t => t.id === selectedTemplate);
+  const dynamicInsertAfter = selectedTpl?.dynamic_insert_after || 1;
 
   const handleGenerate = async () => {
     if (selectedCategories.size === 0) { toast.error("Sélectionnez au moins une catégorie"); return; }
@@ -121,10 +185,7 @@ const BrochureGenerator = () => {
       const categories: Record<string, { links: string[]; additionalInfo: string }> = {};
       for (const catId of selectedCategories) {
         const src = categorySources[catId];
-        categories[catId] = {
-          links: src.links.filter(l => l.trim()),
-          additionalInfo: src.additionalInfo,
-        };
+        categories[catId] = { links: src.links.filter(l => l.trim()), additionalInfo: src.additionalInfo };
       }
 
       const { data, error } = await supabase.functions.invoke("generate-brochure", {
@@ -154,7 +215,6 @@ const BrochureGenerator = () => {
       const pageEls = guideRef.current.querySelectorAll('.guide-page');
       const container = document.createElement('div');
       pageEls.forEach(p => container.appendChild(p.cloneNode(true)));
-
       const { moisDebut, moisFin, annee } = formatDateRange();
       await html2pdf().set({
         margin: 0,
@@ -182,12 +242,14 @@ const BrochureGenerator = () => {
             <CardTitle className="text-lg" style={{ fontFamily: 'Montserrat' }}>Paramètres</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Template select */}
             {templates.length > 0 && (
               <div>
                 <label className="text-sm font-semibold">Template</label>
                 <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
                   <SelectTrigger><SelectValue placeholder="Sélectionner un template" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Aucun template</SelectItem>
                     {templates.map(t => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
@@ -195,6 +257,39 @@ const BrochureGenerator = () => {
                 </Select>
               </div>
             )}
+
+            {/* Brand colors */}
+            <div>
+              <label className="text-sm font-semibold flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5" />
+                Couleurs de marque
+              </label>
+              <div className="flex gap-2 mt-1.5 items-center">
+                {brand.colors.map((c, i) => (
+                  <div key={i} className="relative group">
+                    <input
+                      type="color"
+                      value={c}
+                      onChange={e => {
+                        const next = [...brand.colors];
+                        next[i] = e.target.value;
+                        setBrand(b => ({ ...b, colors: next }));
+                      }}
+                      className="w-8 h-8 rounded-full border-2 border-border cursor-pointer appearance-none p-0"
+                      style={{ background: c }}
+                    />
+                  </div>
+                ))}
+              </div>
+              {brand.logoUrl && (
+                <div className="mt-2 flex items-center gap-2">
+                  <img src={brand.logoUrl} alt="Logo" className="h-8 object-contain rounded" />
+                  <span className="text-xs text-muted-foreground">Logo du template</span>
+                </div>
+              )}
+            </div>
+
+            {/* Date range */}
             <div>
               <label className="text-sm font-semibold">Période couverte</label>
               <div className="grid grid-cols-2 gap-2 mt-1">
@@ -207,8 +302,8 @@ const BrochureGenerator = () => {
                   <Input type="date" value={dateFin} onChange={e => setDateFin(e.target.value)} />
                 </div>
               </div>
-              <div className="mt-2 text-center py-2 rounded-lg" style={{ background: 'hsl(var(--guide-orange) / 0.1)' }}>
-                <p className="text-sm font-bold" style={{ fontFamily: 'Montserrat', color: 'hsl(var(--guide-orange))' }}>
+              <div className="mt-2 text-center py-2 rounded-lg" style={{ background: `${brand.colors[0]}15` }}>
+                <p className="text-sm font-bold" style={{ fontFamily: 'Montserrat', color: brand.colors[0] }}>
                   {moisDebut} – {moisFin} {annee}
                 </p>
               </div>
@@ -258,8 +353,14 @@ const BrochureGenerator = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold">Infos complémentaires</label>
-                      <Textarea value={categorySources[cat.id].additionalInfo} onChange={e => updateCategoryInfo(cat.id, e.target.value)} placeholder="Texte ou infos à copier-coller..." rows={2} className="text-xs mt-1" />
+                      <label className="text-xs font-semibold">Directives / Infos</label>
+                      <Textarea
+                        value={categorySources[cat.id].additionalInfo}
+                        onChange={e => updateCategoryInfo(cat.id, e.target.value)}
+                        placeholder="Ex: 'Inclure tous les marchés du samedi matin' ou coller des infos..."
+                        rows={2}
+                        className="text-xs mt-1"
+                      />
                     </div>
                   </div>
                 )}
@@ -269,28 +370,30 @@ const BrochureGenerator = () => {
         </Card>
 
         <div className="flex flex-col gap-3">
-          <Button onClick={handleGenerate} disabled={isGenerating} className="w-full text-white font-bold" style={{ background: 'hsl(var(--guide-orange))', fontFamily: 'Montserrat' }} size="lg">
+          <Button onClick={handleGenerate} disabled={isGenerating} className="w-full text-white font-bold" style={{ background: brand.colors[0], fontFamily: 'Montserrat' }} size="lg">
             {isGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Génération en cours…</> : <><RefreshCw className="w-4 h-4 mr-2" />Générer la brochure</>}
           </Button>
           {pages && (
-            <Button onClick={handleDownload} variant="outline" className="w-full font-bold" style={{ fontFamily: 'Montserrat', borderColor: 'hsl(var(--guide-blue))', color: 'hsl(var(--guide-blue))' }} size="lg">
+            <Button onClick={handleDownload} variant="outline" className="w-full font-bold" style={{ fontFamily: 'Montserrat', borderColor: brand.colors[1], color: brand.colors[1] }} size="lg">
               <Download className="w-4 h-4 mr-2" />Télécharger PDF
             </Button>
           )}
         </div>
       </aside>
 
-      {/* Right panel */}
+      {/* Right panel — live or generated preview */}
       <main className="flex-1 overflow-x-auto">
         {pages ? (
           <BrochurePreview pages={pages} guideRef={guideRef} />
         ) : (
-          <div className="flex items-center justify-center h-96 text-muted-foreground">
-            <div className="text-center">
-              <p className="text-lg font-semibold" style={{ fontFamily: 'Montserrat' }}>Aperçu de la brochure</p>
-              <p className="text-sm mt-1">Sélectionnez vos paramètres et cliquez sur "Générer" pour voir l'aperçu</p>
-            </div>
-          </div>
+          <LiveBrochurePreview
+            dateDebut={dateDebut}
+            dateFin={dateFin}
+            brand={brand}
+            categories={liveCategories}
+            templatePages={templatePages}
+            dynamicInsertAfter={dynamicInsertAfter}
+          />
         )}
       </main>
     </div>
