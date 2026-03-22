@@ -21,6 +21,7 @@ export type Database = {
           id: string
           image_urls: string[] | null
           layout_description: string | null
+          layout_json: Json | null
           page_number: number
           template_id: string
           title: string | null
@@ -31,6 +32,7 @@ export type Database = {
           id?: string
           image_urls?: string[] | null
           layout_description?: string | null
+          layout_json?: Json | null
           page_number: number
           template_id: string
           title?: string | null
@@ -41,6 +43,7 @@ export type Database = {
           id?: string
           image_urls?: string[] | null
           layout_description?: string | null
+          layout_json?: Json | null
           page_number?: number
           template_id?: string
           title?: string | null
