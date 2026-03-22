@@ -169,7 +169,8 @@ const DynamicPagesPreview = ({ categories, brand, contactInfo, accueilHoraires }
   return (
     <>
       {pageContents.map((pageCats, pageIdx) => (
-        <PageShell key={pageIdx} brand={brand}>
+        <div key={pageIdx} style={{ width: A4_W * SCALE, height: A4_H * SCALE, overflow: "hidden", position: "relative" }}>
+        <PageShell brand={brand}>
           <div style={{ padding: "36px 40px", paddingBottom: 80, overflow: "hidden", height: A4_H - 80 }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, color: primary, marginBottom: 6 }}>Événements</h2>
             <div style={{ height: 3, width: 60, background: primary, borderRadius: 2, marginBottom: 16 }} />
