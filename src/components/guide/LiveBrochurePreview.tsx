@@ -306,24 +306,7 @@ const LiveBrochurePreview = ({ dateDebut, dateFin, brand, categories, templatePa
       {/* Dynamic event pages */}
       {categories.length > 0 && (
         <div className="flex flex-col items-center gap-4">
-          {(() => {
-            const dynPages: CategoryInfo[][] = [];
-            for (let i = 0; i < categories.length; i += 3) {
-              dynPages.push(categories.slice(i, i + 3));
-            }
-            return dynPages.map((_, pageIdx) => (
-              <div key={`dyn-${pageIdx}`} style={{ width: A4_W * SCALE, height: A4_H * SCALE, overflow: "hidden", position: "relative" }}>
-                <DynamicPagesPreview categories={categories.slice(pageIdx * 3, pageIdx * 3 + 3)} brand={brand} contactInfo={contactInfo} accueilHoraires={accueilHoraires} />
-                <div style={{
-                  position: "absolute", top: 8, right: 8,
-                  background: brand.colors[1] || "#0077B6", color: "#fff",
-                  fontSize: 9, fontWeight: 700, padding: "3px 10px", borderRadius: 12, letterSpacing: 0.3,
-                }}>
-                  PAGE DYNAMIQUE {pageIdx + 1}
-                </div>
-              </div>
-            ));
-          })()}
+          <DynamicPagesPreview categories={categories} brand={brand} contactInfo={contactInfo} accueilHoraires={accueilHoraires} />
         </div>
       )}
 
