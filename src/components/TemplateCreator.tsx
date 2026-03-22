@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Upload, Save, Loader2, Image as ImageIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Upload, Save, Loader2, Image as ImageIcon, Paintbrush, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import VisualEditor from "./editor/VisualEditor";
+import { EditorElement, BrandConfig, DEFAULT_BRAND } from "./editor/types";
 
 interface PageDefinition {
   page_number: number;
@@ -14,6 +17,7 @@ interface PageDefinition {
   layout_description: string;
   images: File[];
   imageUrls: string[];
+  layoutElements: EditorElement[];
 }
 
 const TemplateCreator = () => {
@@ -26,13 +30,15 @@ const TemplateCreator = () => {
   const [fixedPagesCount, setFixedPagesCount] = useState(4);
   const [dynamicInsertAfter, setDynamicInsertAfter] = useState(1);
   const [pages, setPages] = useState<PageDefinition[]>([
-    { page_number: 1, title: "Couverture", content_instructions: "", layout_description: "", images: [], imageUrls: [] },
-    { page_number: 2, title: "Page 2", content_instructions: "", layout_description: "", images: [], imageUrls: [] },
-    { page_number: 3, title: "Page 3", content_instructions: "", layout_description: "", images: [], imageUrls: [] },
-    { page_number: 4, title: "Dernière page", content_instructions: "", layout_description: "", images: [], imageUrls: [] },
+    { page_number: 1, title: "Couverture", content_instructions: "", layout_description: "", images: [], imageUrls: [], layoutElements: [] },
+    { page_number: 2, title: "Page 2", content_instructions: "", layout_description: "", images: [], imageUrls: [], layoutElements: [] },
+    { page_number: 3, title: "Page 3", content_instructions: "", layout_description: "", images: [], imageUrls: [], layoutElements: [] },
+    { page_number: 4, title: "Dernière page", content_instructions: "", layout_description: "", images: [], imageUrls: [], layoutElements: [] },
   ]);
   const [charterPdfs, setCharterPdfs] = useState<File[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [brandConfig, setBrandConfig] = useState<BrandConfig>(DEFAULT_BRAND);
+  const [activePageEditor, setActivePageEditor] = useState<number | null>(null);
 
   const updatePagesCount = (count: number) => {
     const clamped = Math.max(2, Math.min(20, count));
@@ -41,7 +47,7 @@ const TemplateCreator = () => {
       if (clamped > prev.length) {
         const newPages = [...prev];
         for (let i = prev.length; i < clamped; i++) {
-          newPages.push({ page_number: i + 1, title: `Page ${i + 1}`, content_instructions: "", layout_description: "", images: [], imageUrls: [] });
+          newPages.push({ page_number: i + 1, title: `Page ${i + 1}`, content_instructions: "", layout_description: "", images: [], imageUrls: [], layoutElements: [] });
         }
         return newPages;
       }
@@ -81,7 +87,7 @@ const TemplateCreator = () => {
     setIsSaving(true);
     try {
       const timestamp = Date.now();
-      let logoUrl = "";
+      let logoUrl = brandConfig.logoUrl || "";
       if (logoFile) {
         logoUrl = await uploadFile(logoFile, `templates/${timestamp}/logo_${logoFile.name}`);
       }
@@ -96,7 +102,7 @@ const TemplateCreator = () => {
         name,
         description,
         logo_url: logoUrl,
-        contact_info: { ...contactInfo, horaires, points_accueil: pointsAccueil },
+        contact_info: { ...contactInfo, horaires, points_accueil: pointsAccueil, brand: brandConfig },
         accueil_horaires: { horaires, points_accueil: pointsAccueil },
         fixed_pages_count: fixedPagesCount,
         dynamic_insert_after: dynamicInsertAfter,
@@ -119,6 +125,7 @@ const TemplateCreator = () => {
           content_instructions: page.content_instructions,
           image_urls: imageUrls,
           layout_description: page.layout_description,
+          layout_json: page.layoutElements as any,
         });
         if (pErr) throw pErr;
       }
@@ -131,6 +138,32 @@ const TemplateCreator = () => {
       setIsSaving(false);
     }
   };
+
+  // If a page editor is open, show the full visual editor
+  if (activePageEditor !== null) {
+    const page = pages[activePageEditor];
+    return (
+      <div className="max-w-6xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => setActivePageEditor(null)}>← Retour</Button>
+            <h2 className="font-semibold text-base" style={{ fontFamily: "Montserrat" }}>
+              Éditeur visuel — {page.title}
+            </h2>
+          </div>
+        </div>
+        <VisualEditor
+          initialElements={page.layoutElements}
+          initialBrand={brandConfig}
+          pageTitle={`Page ${page.page_number}: ${page.title}`}
+          onSave={(elements, brand) => {
+            updatePage(activePageEditor, "layoutElements", elements);
+            setBrandConfig(brand);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -147,13 +180,6 @@ const TemplateCreator = () => {
           <div>
             <label className="text-sm font-semibold">Description</label>
             <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Décrivez l'usage de ce template..." rows={2} />
-          </div>
-          <div>
-            <label className="text-sm font-semibold">Logo</label>
-            <div className="border-2 border-dashed border-border rounded-lg p-3 text-center cursor-pointer hover:border-primary/50 transition-colors relative">
-              <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
-              {logoFile ? <p className="text-sm">{logoFile.name}</p> : <p className="text-sm text-muted-foreground">Cliquez pour uploader le logo</p>}
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -222,6 +248,20 @@ const TemplateCreator = () => {
                 Page {page.page_number}
                 {idx === dynamicInsertAfter && <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full" style={{ background: 'hsl(var(--guide-blue) / 0.15)', color: 'hsl(var(--guide-blue))' }}>↓ Contenu dynamique inséré ici</span>}
               </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5 text-xs"
+                onClick={() => setActivePageEditor(idx)}
+              >
+                <Paintbrush className="w-3.5 h-3.5" />
+                Éditeur visuel
+                {page.layoutElements.length > 0 && (
+                  <span className="ml-1 bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-[10px]">
+                    {page.layoutElements.length}
+                  </span>
+                )}
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -231,11 +271,11 @@ const TemplateCreator = () => {
             </div>
             <div>
               <label className="text-sm font-semibold">Contenu / Instructions</label>
-              <Textarea value={page.content_instructions} onChange={e => updatePage(idx, "content_instructions", e.target.value)} placeholder="Décrivez le contenu de cette page, les textes, les informations à afficher..." rows={3} />
+              <Textarea value={page.content_instructions} onChange={e => updatePage(idx, "content_instructions", e.target.value)} placeholder="Décrivez le contenu de cette page..." rows={3} />
             </div>
             <div>
-              <label className="text-sm font-semibold">Mise en page</label>
-              <Textarea value={page.layout_description} onChange={e => updatePage(idx, "layout_description", e.target.value)} placeholder="Décrivez où le texte et les images doivent aller. Ex: Logo en haut, grande image de fond, texte centré en bas..." rows={2} />
+              <label className="text-sm font-semibold">Mise en page (description textuelle)</label>
+              <Textarea value={page.layout_description} onChange={e => updatePage(idx, "layout_description", e.target.value)} placeholder="Décrivez où le texte et les images doivent aller..." rows={2} />
             </div>
             <div>
               <label className="text-sm font-semibold flex items-center gap-1.5">
