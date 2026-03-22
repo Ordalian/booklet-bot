@@ -146,75 +146,130 @@ const DynamicPagesPreview = ({ categories, brand, contactInfo, accueilHoraires }
   const primary = brand.colors[0] || "#E85D04";
   const secondary = brand.colors[1] || "#0077B6";
   const accent = brand.colors[2] || "#2D6A4F";
-
   const catColors = [primary, secondary, accent, brand.colors[3] || "#E8A838", brand.colors[4] || "#9B59B6"];
 
-  // Split categories into pages to avoid overflow — max ~3 categories per page
-  const pages: CategoryInfo[][] = [];
-  for (let i = 0; i < categories.length; i += 3) {
-    pages.push(categories.slice(i, i + 3));
-  }
+  // Build pages: each page can hold ~6 event cards or 2 categories without events
+  const pageContents: { cat: CategoryInfo; cc: string }[][] = [];
+  let currentPage: { cat: CategoryInfo; cc: string }[] = [];
+  let currentPageWeight = 0;
+
+  categories.forEach((cat, ci) => {
+    const cc = catColors[ci % catColors.length];
+    const weight = cat.events.length > 0 ? Math.ceil(cat.events.length / 3) : 1;
+    if (currentPageWeight + weight > 3 && currentPage.length > 0) {
+      pageContents.push(currentPage);
+      currentPage = [];
+      currentPageWeight = 0;
+    }
+    currentPage.push({ cat, cc });
+    currentPageWeight += weight;
+  });
+  if (currentPage.length > 0) pageContents.push(currentPage);
 
   return (
     <>
-      {pages.map((pageCats, pageIdx) => (
+      {pageContents.map((pageCats, pageIdx) => (
         <PageShell key={pageIdx} brand={brand}>
-          <div style={{ padding: "36px 40px", paddingBottom: 80 }}>
-            <h2 style={{ fontSize: 24, fontWeight: 700, color: primary, marginBottom: 8 }}>Événements</h2>
-            <div style={{ height: 3, width: 60, background: primary, borderRadius: 2, marginBottom: 24 }} />
+          <div style={{ padding: "36px 40px", paddingBottom: 80, overflow: "hidden", height: A4_H - 80 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: primary, marginBottom: 6 }}>Événements</h2>
+            <div style={{ height: 3, width: 60, background: primary, borderRadius: 2, marginBottom: 16 }} />
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {pageCats.map((cat, ci) => {
-                const globalIdx = pageIdx * 3 + ci;
-                const cc = catColors[globalIdx % catColors.length];
-                const hasContent = cat.links.filter(l => l.trim()).length > 0 || cat.additionalInfo.trim() || cat.fileCount > 0;
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {pageCats.map(({ cat, cc }) => {
+                const hasEvents = cat.events.length > 0;
+                const hasContent = hasEvents || cat.links.some(l => l.trim()) || cat.additionalInfo.trim() || cat.fileCount > 0;
 
                 return (
-                  <div key={cat.id} style={{ borderLeft: `4px solid ${cc}`, paddingLeft: 16 }}>
+                  <div key={cat.id} style={{ borderLeft: `4px solid ${cc}`, paddingLeft: 14 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                       <div style={{ width: 10, height: 10, borderRadius: "50%", background: cc }} />
-                      <h3 style={{ fontSize: 16, fontWeight: 700, color: cc, margin: 0 }}>{cat.label}</h3>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: cc, margin: 0 }}>{cat.label}</h3>
+                      {hasEvents && <span style={{ fontSize: 9, color: "#999", fontWeight: 600 }}>({cat.events.length})</span>}
                     </div>
 
-                    {hasContent ? (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {hasEvents ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                        {cat.events.slice(0, 6).map((evt, ei) => (
+                          <div key={ei} style={{
+                            background: `${cc}08`, borderRadius: 8, padding: "8px 12px",
+                            border: `1px solid ${cc}18`,
+                          }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#333", lineHeight: 1.3, marginBottom: 3 }}>
+                              {evt.title || "Sans titre"}
+                            </div>
+                            {evt.date && (
+                              <div style={{ fontSize: 9, color: cc, fontWeight: 600, marginBottom: 2 }}>
+                                📅 {evt.date}
+                              </div>
+                            )}
+                            {evt.location && (
+                              <div style={{ fontSize: 9, color: "#666", marginBottom: 2 }}>
+                                📍 {evt.location}
+                              </div>
+                            )}
+                            {evt.description && (
+                              <div style={{ fontSize: 9, color: "#555", lineHeight: 1.4 }}>
+                                {evt.description.substring(0, 80)}{evt.description.length > 80 ? "…" : ""}
+                              </div>
+                            )}
+                            {evt.price && (
+                              <div style={{ fontSize: 9, color: cc, fontWeight: 600, marginTop: 2 }}>
+                                💰 {evt.price}
+                              </div>
+                            )}
+                            {evt.tags?.length > 0 && (
+                              <div style={{ display: "flex", gap: 3, marginTop: 3, flexWrap: "wrap" }}>
+                                {evt.tags.slice(0, 3).map((tag, ti) => (
+                                  <span key={ti} style={{
+                                    fontSize: 7, background: `${cc}20`, color: cc,
+                                    padding: "1px 5px", borderRadius: 8, fontWeight: 600,
+                                  }}>{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {cat.events.length > 6 && (
+                          <div style={{ gridColumn: "span 2", textAlign: "center", fontSize: 10, color: "#999", fontStyle: "italic", padding: 4 }}>
+                            + {cat.events.length - 6} autre(s) événement(s)…
+                          </div>
+                        )}
+                      </div>
+                    ) : hasContent ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                         {cat.links.filter(l => l.trim()).map((link, li) => (
                           <div key={li} style={{
-                            background: `${cc}0A`, borderRadius: 8, padding: "10px 14px", border: `1px solid ${cc}20`,
+                            background: `${cc}0A`, borderRadius: 8, padding: "8px 12px", border: `1px solid ${cc}20`,
                           }}>
-                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
-                              Source web {li + 1}
+                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>
+                              🔗 En attente de scan
                             </div>
-                            <div style={{ fontSize: 11, color: "#444", lineHeight: 1.5 }}>
-                              Événements extraits de cette source
-                            </div>
-                            <div style={{ fontSize: 9, color: "#999", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              🔗 {link.replace(/https?:\/\//, '').substring(0, 40)}…
+                            <div style={{ fontSize: 9, color: "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {link.replace(/https?:\/\//, '').substring(0, 40)}…
                             </div>
                           </div>
                         ))}
                         {cat.additionalInfo.trim() && (
                           <div style={{
-                            background: `${cc}0A`, borderRadius: 8, padding: "10px 14px", border: `1px solid ${cc}20`,
-                            gridColumn: cat.links.filter(l => l.trim()).length === 0 ? "span 2" : undefined,
+                            background: `${cc}0A`, borderRadius: 8, padding: "8px 12px", border: `1px solid ${cc}20`,
                           }}>
-                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Directives</div>
-                            <div style={{ fontSize: 11, color: "#444", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-                              {cat.additionalInfo.substring(0, 120)}{cat.additionalInfo.length > 120 ? "…" : ""}
+                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", marginBottom: 3 }}>Directives</div>
+                            <div style={{ fontSize: 9, color: "#444", lineHeight: 1.4, whiteSpace: "pre-wrap" }}>
+                              {cat.additionalInfo.substring(0, 100)}{cat.additionalInfo.length > 100 ? "…" : ""}
                             </div>
                           </div>
                         )}
                         {cat.fileCount > 0 && (
-                          <div style={{ background: `${cc}0A`, borderRadius: 8, padding: "10px 14px", border: `1px solid ${cc}20` }}>
-                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>📄 Documents</div>
-                            <div style={{ fontSize: 11, color: "#444" }}>{cat.fileCount} fichier{cat.fileCount > 1 ? "s" : ""}</div>
+                          <div style={{ background: `${cc}0A`, borderRadius: 8, padding: "8px 12px", border: `1px solid ${cc}20` }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: cc, marginBottom: 3 }}>📄 Documents</div>
+                            <div style={{ fontSize: 9, color: "#444" }}>{cat.fileCount} fichier{cat.fileCount > 1 ? "s" : ""}</div>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div style={{ padding: "12px 16px", background: "#f8f8f8", borderRadius: 8, textAlign: "center" }}>
-                        <p style={{ fontSize: 11, color: "#aaa", fontStyle: "italic" }}>
-                          Ajoutez des liens, fichiers ou directives
+                      <div style={{ padding: "10px 14px", background: "#f8f8f8", borderRadius: 8, textAlign: "center" }}>
+                        <p style={{ fontSize: 10, color: "#aaa", fontStyle: "italic" }}>
+                          Ajoutez des liens et cliquez 🔍 pour scanner
                         </p>
                       </div>
                     )}
