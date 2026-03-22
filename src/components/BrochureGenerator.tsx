@@ -74,6 +74,41 @@ const BrochureGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pages, setPages] = useState<BrochurePage[] | null>(null);
   const guideRef = useRef<HTMLDivElement>(null);
+  // Scraped events per category per link: { [catId]: { [url]: ScrapedEvent[] } }
+  const [scrapedEvents, setScrapedEvents] = useState<Record<string, Record<string, ScrapedEvent[]>>>({});
+  const [scrapingUrls, setScrapingUrls] = useState<Set<string>>(new Set());
+
+  const scrapeLink = useCallback(async (catId: string, url: string) => {
+    if (!url.trim() || !url.startsWith('http')) return;
+    const key = `${catId}::${url}`;
+    if (scrapingUrls.has(key)) return;
+
+    setScrapingUrls(prev => new Set(prev).add(key));
+    try {
+      const { data, error } = await supabase.functions.invoke("scrape-preview", {
+        body: { url },
+      });
+      if (error) throw error;
+      if (data?.events?.length) {
+        setScrapedEvents(prev => ({
+          ...prev,
+          [catId]: { ...prev[catId], [url]: data.events },
+        }));
+        toast.success(`${data.events.length} événement(s) trouvé(s)`);
+      } else {
+        toast.info("Aucun événement trouvé sur cette page");
+        setScrapedEvents(prev => ({
+          ...prev,
+          [catId]: { ...prev[catId], [url]: [] },
+        }));
+      }
+    } catch (err: any) {
+      console.error('Scrape error:', err);
+      toast.error("Erreur de scraping: " + (err.message || "Erreur"));
+    } finally {
+      setScrapingUrls(prev => { const n = new Set(prev); n.delete(key); return n; });
+    }
+  }, [scrapingUrls]);
 
   // Fetch templates
   useEffect(() => {
