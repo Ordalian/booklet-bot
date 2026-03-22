@@ -33,6 +33,7 @@ type Template = {
   description: string | null;
   logo_url: string | null;
   contact_info: any;
+  accueil_horaires: any;
   dynamic_insert_after: number;
   fixed_pages_count: number;
 };
