@@ -1,0 +1,1 @@
+ALTER TABLE public.template_pages ADD COLUMN layout_json jsonb DEFAULT '[]'::jsonb;
