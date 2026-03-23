@@ -167,6 +167,7 @@ export function useEditorState(initialElements: EditorElement[] = []) {
     setBrandConfig,
     addElement,
     updateElement,
+    batchUpdateElements,
     deleteElement,
     moveLayer,
     duplicateElement,
