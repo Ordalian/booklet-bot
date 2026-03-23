@@ -9,6 +9,7 @@ interface Props {
   scale: number;
   onSelect: (id: string | null) => void;
   onTransform: (id: string, changes: Partial<EditorElement>) => void;
+  onBatchTransform?: (updates: { id: string; changes: Partial<EditorElement> }[]) => void;
   gridEnabled?: boolean;
   gridSize?: number;
 }
