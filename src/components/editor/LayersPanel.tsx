@@ -94,7 +94,21 @@ const LayersPanel = ({ elements, selectedId, onSelect, onToggleVisible, onToggle
             <Icon className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="flex-1 truncate">{item.name}</span>
             {item.isGroup && (
-              <span className="text-[9px] text-muted-foreground bg-muted px-1 rounded">{item.elementIds.length}</span>
+              <>
+                <span className="text-[9px] text-muted-foreground bg-muted px-1 rounded">{item.elementIds.length}</span>
+                {onSaveGroupAsAsset && (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      onSaveGroupAsAsset(item.groupId!, item.name, elements.filter(el => el.groupId === item.groupId));
+                    }}
+                    className="p-0.5 hover:bg-primary/10 rounded text-primary"
+                    title="Sauvegarder comme asset"
+                  >
+                    <Save className="w-3 h-3" />
+                  </button>
+                )}
+              </>
             )}
             <button
               onClick={e => {
