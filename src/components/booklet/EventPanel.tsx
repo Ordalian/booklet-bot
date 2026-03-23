@@ -16,6 +16,7 @@ export interface ScrapedEvent {
   tags: string[];
   imageUrl?: string;
   _format?: "withImage" | "noImage";
+  _size?: "normal" | "large";
 }
 
 const EVENT_CATEGORIES = [
