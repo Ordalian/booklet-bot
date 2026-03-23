@@ -6,26 +6,16 @@ import EditorToolbar from "@/components/editor/EditorToolbar";
 import PropertiesPanel from "@/components/editor/PropertiesPanel";
 import LayersPanel from "@/components/editor/LayersPanel";
 import PageListPanel from "./PageListPanel";
-import EventPanel, { ScrapedEvent } from "./EventPanel";
+import EventPanel from "./EventPanel";
 import AssetLibrary from "./AssetLibrary";
 import SettingsPanel from "./SettingsPanel";
-import { paginateEvents } from "./eventPagination";
+import { buildEventTile } from "./buildEventTile";
 import { Button } from "@/components/ui/button";
 import { Save, Download, Loader2, ChevronLeft, ChevronRight, Settings, Layers, Image, Calendar, FileText } from "lucide-react";
 import { CANVAS_SCALE, A4_WIDTH, A4_HEIGHT, createId } from "@/components/editor/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
-const EVENT_CATEGORIES_MAP: Record<string, { label: string; color: string }> = {
-  culture: { label: "Culture et Exposition", color: "#2563eb" },
-  evenementiel: { label: "Événementiel", color: "#E85D04" },
-  nature: { label: "Nature", color: "#16a34a" },
-  famille: { label: "Famille et enfants", color: "#E8A838" },
-  spectacles: { label: "Spectacles", color: "#9B59B6" },
-  brocantes: { label: "Brocantes", color: "#8B7355" },
-};
 
 const sanitizeFilename = (name: string) =>
   name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -40,19 +30,16 @@ const BookletEditor = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [gridEnabled, setGridEnabled] = useState(false);
 
-  // Load templates list
   useEffect(() => {
     supabase.from("templates").select("id, name").order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setTemplates(data); });
   }, []);
 
-  // Sync editor elements ↔ booklet page when switching pages
   useEffect(() => {
     editor.setElements(booklet.currentPage.elements);
     editor.setSelectedId(null);
   }, [booklet.currentPageIndex, booklet.currentPage.id]);
 
-  // Sync editor changes back to booklet
   useEffect(() => {
     if (editor.elements !== booklet.currentPage.elements) {
       booklet.updateCurrentPageElements(editor.elements);
@@ -93,22 +80,33 @@ const BookletEditor = () => {
     editor.addElement("image", { src: url, width: 200, height: 150 });
   }, [editor]);
 
-  const handleGenerateEventPages = useCallback((events: Record<string, ScrapedEvent[]>) => {
-    const categories = Object.entries(events).map(([id, evts]) => ({
-      id,
-      label: EVENT_CATEGORIES_MAP[id]?.label || id,
-      color: EVENT_CATEGORIES_MAP[id]?.color || "#333",
-      events: evts,
-    }));
+  // Handle drop from event sidebar onto canvas
+  const handleCanvasDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const jsonStr = e.dataTransfer.getData("application/json");
+    if (!jsonStr) return;
 
-    const paginatedElements = paginateEvents(categories, booklet.brand);
+    try {
+      const { event, catColor, format } = JSON.parse(jsonStr);
+      const canvasWrapper = e.currentTarget as HTMLElement;
+      const rect = canvasWrapper.getBoundingClientRect();
+      const x = Math.max(20, Math.min((e.clientX - rect.left) / CANVAS_SCALE - 170, A4_WIDTH - 360));
+      const y = Math.max(20, Math.min((e.clientY - rect.top) / CANVAS_SCALE - 130, A4_HEIGHT - 280));
 
-    // Add event pages after current position
-    for (let i = 0; i < paginatedElements.length; i++) {
-      const pageId = booklet.addPage("event", `${categories[0]?.label || "Événements"} (${i + 1})`);
-      booklet.updatePage(pageId, { elements: paginatedElements[i] });
+      const tileElements = buildEventTile(event, x, y, format, catColor, booklet.brand.colors[0]);
+      booklet.addElementsToCurrentPage(tileElements);
+      // Re-sync editor
+      editor.setElements([...booklet.currentPage.elements, ...tileElements]);
+      toast.success(`"${event.title}" ajouté à la page`);
+    } catch (err) {
+      console.error("Drop error:", err);
     }
-  }, [booklet]);
+  }, [booklet, editor]);
+
+  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }, []);
 
   const loadImage = (src: string): Promise<HTMLImageElement> => {
     return new Promise((resolve, reject) => {
@@ -139,21 +137,14 @@ const BookletEditor = () => {
         const stage = new Konva.Stage({ container, width: A4_WIDTH, height: A4_HEIGHT });
         const layer = new Konva.Layer();
         stage.add(layer);
-
         layer.add(new Konva.Rect({ x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT, fill: "white" }));
 
         const page = booklet.pages[i];
-
-        // Pre-load all images for this page
         const imageElements = page.elements.filter(el => el.type === "image" && el.src && el.visible);
         const loadedImages: Record<string, HTMLImageElement> = {};
         await Promise.allSettled(
           imageElements.map(async (el) => {
-            try {
-              loadedImages[el.id] = await loadImage(el.src!);
-            } catch (e) {
-              console.warn("Could not load image for PDF:", el.src);
-            }
+            try { loadedImages[el.id] = await loadImage(el.src!); } catch {}
           })
         );
 
@@ -207,7 +198,6 @@ const BookletEditor = () => {
         layer.draw();
         const dataUrl = stage.toDataURL({ pixelRatio: 2 });
         pdf.addImage(dataUrl, "PNG", 0, 0, A4_WIDTH, A4_HEIGHT);
-
         stage.destroy();
         container.remove();
       }
@@ -236,7 +226,6 @@ const BookletEditor = () => {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-3">
-          <img src="/images/logo.png" alt="OT" className="h-8" />
           <div>
             <h1 className="font-bold text-sm" style={{ fontFamily: "Montserrat", color: "hsl(var(--guide-orange))" }}>
               {booklet.settings.templateName || "Nouveau Booklet"}
@@ -246,7 +235,6 @@ const BookletEditor = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Template loader */}
           {templates.length > 0 && (
             <Select onValueChange={id => booklet.loadTemplate(id)}>
               <SelectTrigger className="h-8 text-xs w-44">
@@ -261,8 +249,7 @@ const BookletEditor = () => {
           )}
 
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={booklet.saveBooklet}>
-            <Save className="w-3.5 h-3.5 mr-1" />
-            Sauvegarder
+            <Save className="w-3.5 h-3.5 mr-1" /> Sauvegarder
           </Button>
           <Button size="sm" className="h-8 text-xs" onClick={handleExportPDF} disabled={isExporting}>
             {isExporting ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1" />}
@@ -274,7 +261,6 @@ const BookletEditor = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar */}
         <aside className="w-64 border-r border-border bg-card flex flex-col overflow-hidden shrink-0">
-          {/* Section tabs */}
           <div className="flex border-b border-border shrink-0">
             {sidebarSections.map(s => (
               <button
@@ -290,21 +276,20 @@ const BookletEditor = () => {
             ))}
           </div>
 
-          {/* Section content */}
           <div className="flex-1 overflow-y-auto p-2">
             {leftSection === "pages" && (
               <PageListPanel
                 pages={booklet.pages}
                 currentIndex={booklet.currentPageIndex}
                 onSelect={booklet.setCurrentPageIndex}
-                onAdd={type => booklet.addPage(type)}
+                onAdd={() => booklet.addPage()}
                 onDuplicate={booklet.duplicatePage}
                 onDelete={booklet.deletePage}
                 onReorder={booklet.reorderPages}
               />
             )}
             {leftSection === "events" && (
-              <EventPanel onGeneratePages={handleGenerateEventPages} />
+              <EventPanel />
             )}
             {leftSection === "assets" && (
               <AssetLibrary
@@ -328,7 +313,6 @@ const BookletEditor = () => {
 
         {/* Center canvas */}
         <main className="flex-1 flex flex-col overflow-hidden bg-muted/20">
-          {/* Toolbar */}
           <div className="shrink-0 px-3 py-2">
             <EditorToolbar
               onAdd={type => editor.addElement(type)}
@@ -345,8 +329,12 @@ const BookletEditor = () => {
             />
           </div>
 
-          {/* Canvas area */}
-          <div className="flex-1 overflow-auto flex items-start justify-center p-4">
+          {/* Drop zone wrapping canvas */}
+          <div
+            className="flex-1 overflow-auto flex items-start justify-center p-4"
+            onDrop={handleCanvasDrop}
+            onDragOver={handleCanvasDragOver}
+          >
             <EditorCanvas
               elements={editor.elements}
               selectedId={editor.selectedId}
@@ -357,7 +345,6 @@ const BookletEditor = () => {
             />
           </div>
 
-          {/* Page indicator */}
           <div className="shrink-0 flex items-center justify-center gap-3 py-2 border-t border-border bg-card">
             <Button
               variant="ghost" size="icon" className="h-7 w-7"
@@ -412,7 +399,6 @@ const BookletEditor = () => {
           </aside>
         )}
 
-        {/* Toggle right panel */}
         <button
           onClick={() => setRightOpen(!rightOpen)}
           className="absolute right-0 top-1/2 -translate-y-1/2 bg-card border border-border rounded-l-md p-1 hover:bg-muted z-10"
