@@ -180,7 +180,7 @@ const EventPanel = ({ onDropEvent }: Props) => {
     toast.success("Événement supprimé");
   };
 
-
+  const uploadEventImage = async (catId: string, sourceKey: string, eventIdx: number, file: File) => {
     try {
       const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `event-images/${Date.now()}_${safeName}`;
