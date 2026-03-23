@@ -3,27 +3,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function fetchMarkdown(url: string, firecrawlKey: string): Promise<string> {
-  const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${firecrawlKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true, waitFor: 3000 }),
-  });
-  const data = await res.json();
-  return data.data?.markdown || data.markdown || '';
+async function fetchPageAsText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LovableBot/1.0)' },
+    });
+    const text = await res.text();
+    // Strip HTML tags for a rough text extraction
+    return text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+               .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+               .replace(/<[^>]+>/g, ' ')
+               .replace(/\s+/g, ' ')
+               .trim()
+               .substring(0, 30000);
+  } catch (e) {
+    console.warn('Failed to fetch URL:', url, e);
+    return '';
+  }
 }
 
 async function fetchFileContent(fileUrl: string): Promise<string> {
   const res = await fetch(fileUrl);
   const contentType = res.headers.get('content-type') || '';
-  
   if (contentType.includes('image')) {
     return `[IMAGE FILE: ${fileUrl}]`;
   }
-  
   const text = await res.text();
   return text.substring(0, 15000);
 }
@@ -37,9 +41,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { url, fileUrls, directives, categoryLabel } = body;
 
-    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -49,14 +51,9 @@ Deno.serve(async (req) => {
     let contentParts: string[] = [];
 
     if (url) {
-      if (!FIRECRAWL_API_KEY) {
-        return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY not configured' }), {
-          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      console.log('Scraping URL:', url);
-      const markdown = await fetchMarkdown(url, FIRECRAWL_API_KEY);
-      if (markdown) contentParts.push(`## Contenu du lien: ${url}\n${markdown}`);
+      console.log('Fetching URL:', url);
+      const text = await fetchPageAsText(url);
+      if (text) contentParts.push(`## Contenu du lien: ${url}\n${text}`);
     }
 
     if (fileUrls && Array.isArray(fileUrls)) {
@@ -77,9 +74,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const combinedContent = contentParts.join('\n\n---\n\n').substring(0, 20000);
+    const combinedContent = contentParts.join('\n\n---\n\n').substring(0, 30000);
 
-    // Build strong directive section
     let directiveSection = '';
     if (categoryLabel) {
       directiveSection += `\n\n## CATÉGORIE CIBLE\nTu extrais UNIQUEMENT les événements qui correspondent à la catégorie "${categoryLabel}". Ignore tout événement hors catégorie.`;
@@ -99,7 +95,9 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Tu es un extracteur d'événements expert. Tu analyses du contenu (pages web, PDF, documents) et tu en extrais des événements structurés.
+            content: `Tu es un extracteur d'événements expert. Tu analyses du contenu brut (pages web, PDF, documents) et tu en extrais des événements structurés.
+
+Le contenu fourni est du texte brut extrait de pages web — il peut contenir du bruit (menus, footers, etc.). Concentre-toi sur le contenu principal.
 
 RÈGLES STRICTES:
 1. N'invente JAMAIS d'informations. Extrais UNIQUEMENT ce qui est explicitement présent dans le texte source.
