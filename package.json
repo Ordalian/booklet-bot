@@ -13,6 +13,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -50,6 +53,7 @@
     "embla-carousel-react": "^8.6.0",
     "html2pdf.js": "0.10.2",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.2.1",
     "konva": "9.3.22",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
