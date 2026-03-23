@@ -104,8 +104,8 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
       onClick: () => onSelect(el.id),
       onTap: () => onSelect(el.id),
       onDragEnd: inGroup ? undefined : (e: any) => handleDragEnd(el.id, e),
-      onTransformEnd: (e: any) => handleTransformEnd(el.id, e),
-      ref: isSelected ? selectedRef : undefined,
+      onTransformEnd: inGroup ? undefined : (e: any) => handleTransformEnd(el.id, e),
+      ref: isSelected && !inGroup ? selectedRef : undefined,
     };
 
     switch (el.type) {
@@ -219,7 +219,7 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
               <Line key={`guide-${i}`} points={g.points} stroke={g.stroke} strokeWidth={1} dash={[4, 4]} />
             ))}
 
-            {selectedId && (
+            {selectedId && !selectedGroupId && (
               <Transformer
                 ref={trRef}
                 rotateEnabled

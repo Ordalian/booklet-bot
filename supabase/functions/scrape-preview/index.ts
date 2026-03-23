@@ -10,25 +10,22 @@ async function fetchMarkdown(url: string, firecrawlKey: string): Promise<string>
       'Authorization': `Bearer ${firecrawlKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true }),
+    body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true, waitFor: 3000 }),
   });
   const data = await res.json();
   return data.data?.markdown || data.markdown || '';
 }
 
 async function fetchFileContent(fileUrl: string): Promise<string> {
-  // Download file and extract text
   const res = await fetch(fileUrl);
   const contentType = res.headers.get('content-type') || '';
   
   if (contentType.includes('image')) {
-    // For images, return a marker — AI will process via vision
     return `[IMAGE FILE: ${fileUrl}]`;
   }
   
-  // For PDF/doc, get raw text
   const text = await res.text();
-  return text.substring(0, 10000);
+  return text.substring(0, 15000);
 }
 
 Deno.serve(async (req) => {
@@ -51,7 +48,6 @@ Deno.serve(async (req) => {
 
     let contentParts: string[] = [];
 
-    // Handle URL scraping
     if (url) {
       if (!FIRECRAWL_API_KEY) {
         return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY not configured' }), {
@@ -63,7 +59,6 @@ Deno.serve(async (req) => {
       if (markdown) contentParts.push(`## Contenu du lien: ${url}\n${markdown}`);
     }
 
-    // Handle file URLs
     if (fileUrls && Array.isArray(fileUrls)) {
       for (const fUrl of fileUrls) {
         console.log('Processing file:', fUrl);
@@ -82,18 +77,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const combinedContent = contentParts.join('\n\n---\n\n').substring(0, 12000);
+    const combinedContent = contentParts.join('\n\n---\n\n').substring(0, 20000);
 
-    // Build directive context
-    let directiveText = '';
-    if (directives) {
-      directiveText = `\n\nDirectives utilisateur à respecter: "${directives}"`;
-    }
+    // Build strong directive section
+    let directiveSection = '';
     if (categoryLabel) {
-      directiveText += `\nCatégorie cible: ${categoryLabel}`;
+      directiveSection += `\n\n## CATÉGORIE CIBLE\nTu extrais UNIQUEMENT les événements qui correspondent à la catégorie "${categoryLabel}". Ignore tout événement hors catégorie.`;
+    }
+    if (directives && directives.trim()) {
+      directiveSection += `\n\n## DIRECTIVES UTILISATEUR (À RESPECTER IMPÉRATIVEMENT)\n${directives.trim()}\n\nCes directives ont PRIORITÉ sur tout le reste. Si l'utilisateur demande de filtrer, exclure, ou se concentrer sur certains types d'événements, tu DOIS respecter ces instructions.`;
     }
 
-    // Extract events via AI
     const aiRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -105,14 +99,21 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Tu extrais des événements à partir de contenu (web, PDF, fichiers). Retourne un JSON strict:
-{ "events": [ { "title": "...", "date": "...", "location": "...", "description": "...", "price": "...", "tags": ["..."] } ] }
-Règles STRICTES:
-- N'invente RIEN. Extrais uniquement ce qui est présent dans le texte.
-- Si un champ n'est pas trouvé, mets une chaîne vide "".
-- Extrais TOUS les événements trouvés.
-- La description doit être informative et détaillée (2-3 phrases) si le contenu le permet.
-- Retourne UNIQUEMENT le JSON, sans markdown ni backticks.${directiveText}`
+            content: `Tu es un extracteur d'événements expert. Tu analyses du contenu (pages web, PDF, documents) et tu en extrais des événements structurés.
+
+RÈGLES STRICTES:
+1. N'invente JAMAIS d'informations. Extrais UNIQUEMENT ce qui est explicitement présent dans le texte source.
+2. Si un champ n'est pas trouvé dans le texte, mets une chaîne vide "".
+3. Extrais TOUS les événements pertinents trouvés dans le contenu, sans en omettre.
+4. La description doit être COMPLÈTE et DÉTAILLÉE : reprends le maximum d'informations utiles (programme, intervenants, horaires, conditions, public cible). Ne résume PAS en une seule phrase si le contenu est riche.
+5. Pour les dates, utilise le format le plus complet possible (ex: "Samedi 15 mars 2025 de 14h à 18h").
+6. Pour les prix, indique "Gratuit" si c'est gratuit, sinon le tarif exact.
+7. Pour la localisation, sois précis : nom du lieu + adresse/ville si disponible.
+8. Les tags doivent refléter les caractéristiques clés : "gratuit", "famille", "plein air", "accessible PMR", etc.
+${directiveSection}
+
+FORMAT DE SORTIE (JSON strict, sans markdown, sans backticks):
+{ "events": [ { "title": "...", "date": "...", "location": "...", "description": "...", "price": "...", "tags": ["..."] } ] }`
           },
           { role: 'user', content: `Extrais les événements de ce contenu:\n\n${combinedContent}` }
         ],

@@ -14,6 +14,12 @@ const PAD = 12;
 const LINE_H = 1.35;
 const IMG_H = 110;
 
+// Font sizes
+const TITLE_SIZE = 15;
+const FIELD_SIZE = 11;
+const DESC_SIZE = 10;
+const PRICE_SIZE = 11;
+
 function estimateTextHeight(text: string, fontSize: number, maxWidth: number): number {
   const avgCharWidth = fontSize * 0.55;
   const charsPerLine = Math.max(1, Math.floor(maxWidth / avgCharWidth));
@@ -36,11 +42,11 @@ export function buildEventTile(
   let curY = y + 8; // after accent bar
 
   // Calculate total height first
-  const titleH = 20;
-  const dateH = event.date ? 16 : 0;
-  const locH = event.location ? 16 : 0;
-  const descH = event.description ? estimateTextHeight(event.description, 9, textW) : 0;
-  const priceH = event.price ? 16 : 0;
+  const titleH = estimateTextHeight(event.title || "Événement", TITLE_SIZE, textW);
+  const dateH = event.date ? FIELD_SIZE * LINE_H + 4 : 0;
+  const locH = event.location ? FIELD_SIZE * LINE_H + 4 : 0;
+  const descH = event.description ? estimateTextHeight(event.description, DESC_SIZE, textW) : 0;
+  const priceH = event.price ? PRICE_SIZE * LINE_H + 4 : 0;
   const imgZoneH = isImg ? IMG_H + 8 : 0;
   const totalH = 8 + titleH + 4 + dateH + locH + descH + 4 + priceH + imgZoneH + PAD;
 
@@ -68,7 +74,7 @@ export function buildEventTile(
     id: createId(), type: "text", groupId,
     x: x + PAD, y: curY, width: textW, height: titleH, rotation: 0,
     text: event.title || "Événement",
-    fontSize: 13, fontFamily: "Montserrat", fontStyle: "bold",
+    fontSize: TITLE_SIZE, fontFamily: "Montserrat", fontStyle: "bold",
     textAlign: "left", fill: catColor,
     opacity: 1, locked: false, visible: true, name: `tile-title`,
   });
@@ -80,7 +86,7 @@ export function buildEventTile(
       id: createId(), type: "text", groupId,
       x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
       text: `📅 ${event.date}`,
-      fontSize: 10, fontFamily: "Open Sans", fontStyle: "normal",
+      fontSize: FIELD_SIZE, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#555",
       opacity: 1, locked: false, visible: true, name: `tile-date`,
     });
@@ -93,7 +99,7 @@ export function buildEventTile(
       id: createId(), type: "text", groupId,
       x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
       text: `📍 ${event.location}`,
-      fontSize: 10, fontFamily: "Open Sans", fontStyle: "normal",
+      fontSize: FIELD_SIZE, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#555",
       opacity: 1, locked: false, visible: true, name: `tile-location`,
     });
@@ -106,7 +112,7 @@ export function buildEventTile(
       id: createId(), type: "text", groupId,
       x: x + PAD, y: curY, width: textW, height: descH, rotation: 0,
       text: event.description,
-      fontSize: 9, fontFamily: "Open Sans", fontStyle: "normal",
+      fontSize: DESC_SIZE, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#333",
       opacity: 1, locked: false, visible: true, name: `tile-desc`,
     });
@@ -119,7 +125,7 @@ export function buildEventTile(
       id: createId(), type: "text", groupId,
       x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
       text: `💰 ${event.price}`,
-      fontSize: 10, fontFamily: "Open Sans", fontStyle: "bold",
+      fontSize: PRICE_SIZE, fontFamily: "Open Sans", fontStyle: "bold",
       textAlign: "left", fill: catColor,
       opacity: 1, locked: false, visible: true, name: `tile-price`,
     });
