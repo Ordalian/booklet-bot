@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useCallback } from "react";
-import { Stage, Layer, Rect, Circle, Text, Line, Transformer, Image as KImage } from "react-konva";
+import React, { useRef, useEffect, useCallback, Fragment } from "react";
+import { Stage, Layer, Rect, Circle, Text, Line, Transformer, Image as KImage, Group } from "react-konva";
 import { EditorElement, A4_WIDTH, A4_HEIGHT } from "./types";
 import useImage from "use-image";
 
@@ -9,6 +9,8 @@ interface Props {
   scale: number;
   onSelect: (id: string | null) => void;
   onTransform: (id: string, changes: Partial<EditorElement>) => void;
+  gridEnabled?: boolean;
+  gridSize?: number;
 }
 
 const URLImage = ({ src, ...props }: any) => {
@@ -17,8 +19,9 @@ const URLImage = ({ src, ...props }: any) => {
 };
 
 const GUIDE_COLOR = "#FF00FF";
+const GRID_COLOR = "#e0e0e0";
 
-const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform }: Props) => {
+const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, gridEnabled = false, gridSize = 20 }: Props) => {
   const trRef = useRef<any>(null);
   const stageRef = useRef<any>(null);
   const selectedRef = useRef<any>(null);
@@ -30,6 +33,11 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform }: Pr
     }
   }, [selectedId]);
 
+  const snapToGrid = useCallback((val: number) => {
+    if (!gridEnabled) return val;
+    return Math.round(val / gridSize) * gridSize;
+  }, [gridEnabled, gridSize]);
+
   const handleStageClick = useCallback((e: any) => {
     if (e.target === e.target.getStage() || e.target.attrs.id === "bg") {
       onSelect(null);
@@ -37,8 +45,10 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform }: Pr
   }, [onSelect]);
 
   const handleDragEnd = useCallback((id: string, e: any) => {
-    onTransform(id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) });
-  }, [onTransform]);
+    const x = snapToGrid(Math.round(e.target.x()));
+    const y = snapToGrid(Math.round(e.target.y()));
+    onTransform(id, { x, y });
+  }, [onTransform, snapToGrid]);
 
   const handleTransformEnd = useCallback((id: string, e: any) => {
     const node = e.target;
@@ -47,13 +57,13 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform }: Pr
     node.scaleX(1);
     node.scaleY(1);
     onTransform(id, {
-      x: Math.round(node.x()),
-      y: Math.round(node.y()),
+      x: snapToGrid(Math.round(node.x())),
+      y: snapToGrid(Math.round(node.y())),
       width: Math.round(Math.max(5, node.width() * scaleX)),
       height: Math.round(Math.max(5, node.height() * scaleY)),
       rotation: Math.round(node.rotation()),
     });
-  }, [onTransform]);
+  }, [onTransform, snapToGrid]);
 
   const renderElement = (el: EditorElement) => {
     if (!el.visible) return null;
@@ -81,6 +91,23 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform }: Pr
           onDragEnd={(e: any) => handleDragEnd(el.id, { target: { x: () => e.target.x() - el.width / 2, y: () => e.target.y() - el.height / 2 } } as any)}
         />;
       case "text":
+        if (el.textBgEnabled && el.textBgColor) {
+          return (
+            <Fragment key={el.id}>
+              <Rect
+                x={el.x - (el.textBgPadding || 8)}
+                y={el.y - (el.textBgPadding || 8)}
+                width={el.width + (el.textBgPadding || 8) * 2}
+                height={(el.height || 40) + (el.textBgPadding || 8) * 2}
+                fill={el.textBgColor}
+                cornerRadius={el.textBgRadius || 0}
+                rotation={el.rotation}
+                opacity={el.opacity}
+              />
+              <Text {...commonProps} text={el.text} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle} align={el.textAlign as any} fill={el.fill} width={el.width} />
+            </Fragment>
+          );
+        }
         return <Text {...commonProps} text={el.text} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle} align={el.textAlign as any} fill={el.fill} width={el.width} />;
       case "image":
         return <URLImage {...commonProps} src={el.src} width={el.width} height={el.height} />;
@@ -91,6 +118,19 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform }: Pr
     }
   };
 
+  // Grid lines
+  const renderGrid = () => {
+    if (!gridEnabled) return null;
+    const lines: React.ReactNode[] = [];
+    for (let x = 0; x <= A4_WIDTH; x += gridSize) {
+      lines.push(<Line key={`gv-${x}`} points={[x, 0, x, A4_HEIGHT]} stroke={GRID_COLOR} strokeWidth={0.5} />);
+    }
+    for (let y = 0; y <= A4_HEIGHT; y += gridSize) {
+      lines.push(<Line key={`gh-${y}`} points={[0, y, A4_WIDTH, y]} stroke={GRID_COLOR} strokeWidth={0.5} />);
+    }
+    return <>{lines}</>;
+  };
+
   // Snapping guides
   const getGuideLines = () => {
     if (!selectedId) return [];
@@ -99,7 +139,6 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform }: Pr
     if (!sel) return lines;
     const cx = sel.x + sel.width / 2;
     const cy = sel.y + sel.height / 2;
-    // Center guides
     if (Math.abs(cx - A4_WIDTH / 2) < 5) {
       lines.push({ points: [A4_WIDTH / 2, 0, A4_WIDTH / 2, A4_HEIGHT], stroke: GUIDE_COLOR });
     }
@@ -122,14 +161,12 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform }: Pr
         style={{ background: "#f0f0f0", boxShadow: "0 2px 16px rgba(0,0,0,0.12)" }}
       >
         <Layer>
-          {/* A4 background */}
           <Rect id="bg" x={0} y={0} width={A4_WIDTH} height={A4_HEIGHT} fill="white" />
-          {/* Margin guides */}
+          {renderGrid()}
           <Rect x={40} y={40} width={A4_WIDTH - 80} height={A4_HEIGHT - 80} stroke="#eee" strokeWidth={0.5} dash={[4, 4]} />
 
           {elements.map(renderElement)}
 
-          {/* Snapping guides */}
           {getGuideLines().map((g, i) => (
             <Line key={`guide-${i}`} points={g.points} stroke={g.stroke} strokeWidth={1} dash={[4, 4]} />
           ))}

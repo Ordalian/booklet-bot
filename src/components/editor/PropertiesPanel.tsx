@@ -12,7 +12,14 @@ interface Props {
   onChange: (id: string, changes: Partial<EditorElement>) => void;
 }
 
-const FONTS = ["Arial", "Montserrat", "Georgia", "Times New Roman", "Courier New", "Verdana", "Trebuchet MS", "Impact"];
+const FONTS = [
+  "Arial", "Montserrat", "Georgia", "Times New Roman", "Courier New",
+  "Verdana", "Trebuchet MS", "Impact", "Lato", "Roboto",
+  "Open Sans", "Playfair Display", "Oswald", "Raleway", "Poppins",
+  "Merriweather", "Nunito", "Ubuntu", "Cabin", "Dancing Script",
+];
+
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72, 96, 120];
 
 const PropertiesPanel = ({ element, brandConfig, onChange }: Props) => {
   if (!element) {
@@ -74,63 +81,120 @@ const PropertiesPanel = ({ element, brandConfig, onChange }: Props) => {
             <Label className="text-xs">Texte</Label>
             <Textarea className="text-xs min-h-[60px]" value={element.text || ""} onChange={e => update({ text: e.target.value })} />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Taille</Label>
-            <Input className="h-7 text-xs" type="number" min={8} max={200} value={element.fontSize} onChange={e => update({ fontSize: Number(e.target.value) })} />
-          </div>
+
+          {/* Font family */}
           <div className="space-y-1">
             <Label className="text-xs">Police</Label>
             <Select value={element.fontFamily} onValueChange={v => update({ fontFamily: v })}>
               <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60">
                 {FONTS.map(f => <SelectItem key={f} value={f} style={{ fontFamily: f }}>{f}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+
+          {/* Font size */}
           <div className="space-y-1">
-            <Label className="text-xs">Alignement</Label>
-            <Select value={element.textAlign || "left"} onValueChange={v => update({ textAlign: v })}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="left">Gauche</SelectItem>
-                <SelectItem value="center">Centre</SelectItem>
-                <SelectItem value="right">Droite</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="text-xs">Taille</Label>
+            <div className="flex items-center gap-2">
+              <Select value={String(element.fontSize || 24)} onValueChange={v => update({ fontSize: Number(v) })}>
+                <SelectTrigger className="h-7 text-xs w-20"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {FONT_SIZES.map(s => <SelectItem key={s} value={String(s)}>{s}px</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input className="h-7 text-xs flex-1" type="number" min={6} max={200} value={element.fontSize || 24} onChange={e => update({ fontSize: Number(e.target.value) })} />
+            </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {/* Alignment */}
+            <div className="space-y-1">
+              <Label className="text-xs">Alignement</Label>
+              <Select value={element.textAlign || "left"} onValueChange={v => update({ textAlign: v })}>
+                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="left">Gauche</SelectItem>
+                  <SelectItem value="center">Centre</SelectItem>
+                  <SelectItem value="right">Droite</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Style */}
+            <div className="space-y-1">
+              <Label className="text-xs">Style</Label>
+              <Select value={element.fontStyle || "normal"} onValueChange={v => update({ fontStyle: v })}>
+                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="bold">Gras</SelectItem>
+                  <SelectItem value="italic">Italique</SelectItem>
+                  <SelectItem value="bold italic">Gras Italique</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Text color */}
           <div className="space-y-1">
-            <Label className="text-xs">Style</Label>
-            <Select value={element.fontStyle || "normal"} onValueChange={v => update({ fontStyle: v })}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="bold">Gras</SelectItem>
-                <SelectItem value="italic">Italique</SelectItem>
-                <SelectItem value="bold italic">Gras Italique</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="text-xs">Couleur du texte</Label>
+            <div className="flex items-center gap-2">
+              <input type="color" value={element.fill || "#000000"} onChange={e => update({ fill: e.target.value })} className="w-8 h-7 rounded border cursor-pointer" />
+              <Input className="h-7 text-xs flex-1" value={element.fill || ""} onChange={e => update({ fill: e.target.value })} />
+            </div>
+            <div className="flex gap-1 mt-1">
+              {brandConfig.colors.map((c, i) => (
+                <button key={i} className="w-5 h-5 rounded border border-border hover:scale-110 transition-transform" style={{ background: c }} onClick={() => update({ fill: c })} title={c} />
+              ))}
+            </div>
+          </div>
+
+          {/* Text background */}
+          <div className="space-y-2 border border-border rounded-md p-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">Fond du texte</Label>
+              <Switch checked={element.textBgEnabled || false} onCheckedChange={v => update({ textBgEnabled: v })} />
+            </div>
+            {element.textBgEnabled && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs">Couleur de fond</Label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={element.textBgColor || "#FFFFFF"} onChange={e => update({ textBgColor: e.target.value })} className="w-8 h-7 rounded border cursor-pointer" />
+                    <Input className="h-7 text-xs flex-1" value={element.textBgColor || "#FFFFFF"} onChange={e => update({ textBgColor: e.target.value })} />
+                  </div>
+                  <div className="flex gap-1 mt-1">
+                    {brandConfig.colors.map((c, i) => (
+                      <button key={i} className="w-5 h-5 rounded border border-border hover:scale-110 transition-transform" style={{ background: c }} onClick={() => update({ textBgColor: c })} title={c} />
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Padding ({element.textBgPadding || 8}px)</Label>
+                  <Slider min={0} max={40} step={1} value={[element.textBgPadding || 8]} onValueChange={([v]) => update({ textBgPadding: v })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Arrondi ({element.textBgRadius || 0}px)</Label>
+                  <Slider min={0} max={30} step={1} value={[element.textBgRadius || 0]} onValueChange={([v]) => update({ textBgRadius: v })} />
+                </div>
+              </>
+            )}
           </div>
         </>
       )}
 
-      {/* Fill color */}
-      {element.type !== "line" && element.type !== "image" && (
+      {/* Fill color (non-text, non-line, non-image) */}
+      {element.type !== "line" && element.type !== "image" && element.type !== "text" && (
         <div className="space-y-1">
           <Label className="text-xs">Couleur de remplissage</Label>
           <div className="flex items-center gap-2">
             <input type="color" value={element.fill || "#000000"} onChange={e => update({ fill: e.target.value })} className="w-8 h-7 rounded border cursor-pointer" />
             <Input className="h-7 text-xs flex-1" value={element.fill || ""} onChange={e => update({ fill: e.target.value })} />
           </div>
-          {/* Brand color swatches */}
           <div className="flex gap-1 mt-1">
             {brandConfig.colors.map((c, i) => (
-              <button
-                key={i}
-                className="w-5 h-5 rounded border border-border hover:scale-110 transition-transform"
-                style={{ background: c }}
-                onClick={() => update({ fill: c })}
-                title={c}
-              />
+              <button key={i} className="w-5 h-5 rounded border border-border hover:scale-110 transition-transform" style={{ background: c }} onClick={() => update({ fill: c })} title={c} />
             ))}
           </div>
         </div>
