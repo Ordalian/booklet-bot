@@ -3,6 +3,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+async function fetchPageAsText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LovableBot/1.0)' },
+    });
+    const text = await res.text();
+    return text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+               .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+               .replace(/<[^>]+>/g, ' ')
+               .replace(/\s+/g, ' ')
+               .trim()
+               .substring(0, 30000);
+  } catch (e) {
+    console.warn('Failed to fetch URL:', url, e);
+    return '';
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -10,13 +28,6 @@ Deno.serve(async (req) => {
 
   try {
     const { dateDebut, dateFin, additionalInfo } = await req.json();
-
-    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!FIRECRAWL_API_KEY) {
-      return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -27,7 +38,6 @@ Deno.serve(async (req) => {
 
     console.log(`Scraping events from ${dateDebut} to ${dateFin}`);
 
-    // Scrape tourism websites
     const urls = [
       'https://www.tourisme-porteduhainaut.com/preparer/agenda',
       'https://www.agglo-porteduhainaut.fr/culture-sports-loisirs/culture/scenes-plurielles',
@@ -37,39 +47,26 @@ Deno.serve(async (req) => {
 
     for (const url of urls) {
       try {
-        const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url,
-            formats: ['markdown'],
-            onlyMainContent: true,
-          }),
-        });
-
-        const data = await response.json();
-        if (response.ok && (data.data?.markdown || data.markdown)) {
-          scrapedContent.push(`=== Source: ${url} ===\n${data.data?.markdown || data.markdown}`);
-          console.log(`Scraped ${url} successfully`);
-        } else {
-          console.error(`Failed to scrape ${url}:`, data);
+        console.log('Fetching:', url);
+        const text = await fetchPageAsText(url);
+        if (text) {
+          scrapedContent.push(`=== Source: ${url} ===\n${text}`);
+          console.log(`Fetched ${url} successfully (${text.length} chars)`);
         }
       } catch (e) {
-        console.error(`Error scraping ${url}:`, e);
+        console.error(`Error fetching ${url}:`, e);
       }
     }
 
     if (scrapedContent.length === 0) {
-      return new Response(JSON.stringify({ error: 'Could not scrape any content' }), {
+      return new Response(JSON.stringify({ error: 'Could not fetch any content' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Use AI to structure the scraped data
     const systemPrompt = `Tu es un assistant qui structure des données d'événements touristiques pour La Porte du Hainaut Tourisme.
+
+Le contenu fourni est du texte brut extrait de pages web — il peut contenir du bruit (menus, footers, etc.). Concentre-toi sur le contenu principal relatif aux événements.
 
 Tu dois produire un JSON valide au format events_data.json avec la structure exacte suivante:
 {
@@ -90,7 +87,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, sans markdown, sans commentaire.`;
 
     const userPrompt = `Période couverte: du ${dateDebut} au ${dateFin}
 
-Contenu scrapé des sites touristiques:
+Contenu extrait des sites touristiques:
 ${scrapedContent.join('\n\n')}
 
 ${additionalInfo ? `Informations supplémentaires de l'utilisateur:\n${additionalInfo}` : ''}
@@ -104,7 +101,7 @@ Structure ces informations en événements pour le guide des animations de La Po
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -132,8 +129,6 @@ Structure ces informations en événements pour le guide des animations de La Po
 
     const aiData = await aiResponse.json();
     let content = aiData.choices?.[0]?.message?.content || '';
-    
-    // Clean potential markdown wrapping
     content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
     let eventsData;
