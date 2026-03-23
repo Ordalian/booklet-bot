@@ -247,7 +247,7 @@ export function useBookletState() {
   return {
     pages, currentPage, currentPageIndex, setCurrentPageIndex,
     brand, setBrand,
-    assets, uploadAsset, deleteAsset,
+    assets, setAssets, uploadAsset, deleteAsset,
     settings, setSettings,
     addPage, deletePage, duplicatePage, reorderPages, updatePage,
     updateCurrentPageElements, addElementsToCurrentPage,
