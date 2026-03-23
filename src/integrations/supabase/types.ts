@@ -14,37 +14,70 @@ export type Database = {
   }
   public: {
     Tables: {
+      assets: {
+        Row: {
+          created_at: string
+          file_type: string | null
+          id: string
+          name: string
+          thumbnail_url: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          file_type?: string | null
+          id?: string
+          name: string
+          thumbnail_url?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          file_type?: string | null
+          id?: string
+          name?: string
+          thumbnail_url?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
       template_pages: {
         Row: {
           content_instructions: string | null
           created_at: string
+          event_data: Json | null
           id: string
           image_urls: string[] | null
           layout_description: string | null
           layout_json: Json | null
           page_number: number
+          page_type: string
           template_id: string
           title: string | null
         }
         Insert: {
           content_instructions?: string | null
           created_at?: string
+          event_data?: Json | null
           id?: string
           image_urls?: string[] | null
           layout_description?: string | null
           layout_json?: Json | null
           page_number: number
+          page_type?: string
           template_id: string
           title?: string | null
         }
         Update: {
           content_instructions?: string | null
           created_at?: string
+          event_data?: Json | null
           id?: string
           image_urls?: string[] | null
           layout_description?: string | null
           layout_json?: Json | null
           page_number?: number
+          page_type?: string
           template_id?: string
           title?: string | null
         }
