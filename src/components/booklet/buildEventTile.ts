@@ -42,11 +42,11 @@ export function buildEventTile(
   let curY = y + 8; // after accent bar
 
   // Calculate total height first
-  const titleH = 20;
-  const dateH = event.date ? 16 : 0;
-  const locH = event.location ? 16 : 0;
-  const descH = event.description ? estimateTextHeight(event.description, 9, textW) : 0;
-  const priceH = event.price ? 16 : 0;
+  const titleH = estimateTextHeight(event.title || "Événement", TITLE_SIZE, textW);
+  const dateH = event.date ? FIELD_SIZE * LINE_H + 4 : 0;
+  const locH = event.location ? FIELD_SIZE * LINE_H + 4 : 0;
+  const descH = event.description ? estimateTextHeight(event.description, DESC_SIZE, textW) : 0;
+  const priceH = event.price ? PRICE_SIZE * LINE_H + 4 : 0;
   const imgZoneH = isImg ? IMG_H + 8 : 0;
   const totalH = 8 + titleH + 4 + dateH + locH + descH + 4 + priceH + imgZoneH + PAD;
 
