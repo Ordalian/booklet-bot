@@ -74,6 +74,34 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBa
     }
   }, [elements, onTransform, onBatchTransform]);
 
+  // Group transform (width resize): scale all elements proportionally relative to group origin
+  const handleGroupTransformEnd = useCallback((groupId: string, e: any) => {
+    const node = e.target;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    node.scaleX(1);
+    node.scaleY(1);
+
+    const groupEls = elements.filter(el => el.groupId === groupId);
+    const originX = Math.min(...groupEls.map(el => el.x));
+    const originY = Math.min(...groupEls.map(el => el.y));
+    const newOriginX = Math.round(node.x());
+    const newOriginY = Math.round(node.y());
+
+    if (onBatchTransform) {
+      onBatchTransform(groupEls.map(el => ({
+        id: el.id,
+        changes: {
+          x: Math.round(newOriginX + (el.x - originX) * scaleX),
+          y: Math.round(newOriginY + (el.y - originY) * scaleY),
+          width: Math.round(Math.max(5, el.width * scaleX)),
+          height: Math.round(Math.max(5, el.height * scaleY)),
+          ...(el.fontSize ? { fontSize: Math.round(el.fontSize * scaleY) } : {}),
+        },
+      })));
+    }
+  }, [elements, onBatchTransform]);
+
   const handleDragEnd = useCallback((id: string, e: any) => {
     const x = snapToGrid(Math.round(e.target.x()));
     const y = snapToGrid(Math.round(e.target.y()));
@@ -223,15 +251,18 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBa
             {/* Render grouped elements in Konva Groups with relative positioning */}
             {groups.map(([gId, groupEls]) => {
               const origin = getGroupOrigin(groupEls);
+              const isSelectedGroup = gId === selectedGroupId;
               return (
                 <Group
                   key={gId}
+                  ref={isSelectedGroup ? selectedRef : undefined}
                   x={origin.x}
                   y={origin.y}
                   draggable={!groupEls.some(e => e.locked)}
                   onClick={() => onSelect(groupEls[0]?.id || null)}
                   onTap={() => onSelect(groupEls[0]?.id || null)}
                   onDragEnd={(e) => handleGroupDragEnd(gId, e)}
+                  onTransformEnd={(e) => handleGroupTransformEnd(gId, e)}
                 >
                   {groupEls.map(el => renderElement(el, true, origin))}
                 </Group>
@@ -241,11 +272,13 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBa
               <Line key={`guide-${i}`} points={g.points} stroke={g.stroke} strokeWidth={1} dash={[4, 4]} />
             ))}
 
-            {selectedId && !selectedGroupId && (
+            {selectedId && (
               <Transformer
                 ref={trRef}
-                rotateEnabled
-                enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"]}
+                rotateEnabled={!selectedGroupId}
+                enabledAnchors={selectedGroupId
+                  ? ["middle-left", "middle-right"]
+                  : ["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"]}
                 boundBoxFunc={(oldBox, newBox) => {
                   if (newBox.width < 5 || newBox.height < 5) return oldBox;
                   return newBox;

@@ -1,5 +1,6 @@
 import { EditorElement } from "./types";
-import { Eye, EyeOff, Lock, Unlock, Type, Square, Circle, Minus, Image, Package } from "lucide-react";
+import { Eye, EyeOff, Lock, Unlock, Type, Square, Circle, Minus, Image, Package, Save } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   elements: EditorElement[];
@@ -7,6 +8,7 @@ interface Props {
   onSelect: (id: string) => void;
   onToggleVisible: (id: string) => void;
   onToggleLock: (id: string) => void;
+  onSaveGroupAsAsset?: (groupId: string, name: string, elements: EditorElement[]) => void;
 }
 
 const ICONS: Record<string, any> = {
@@ -65,7 +67,7 @@ function buildLayerItems(elements: EditorElement[]): LayerItem[] {
   return items;
 }
 
-const LayersPanel = ({ elements, selectedId, onSelect, onToggleVisible, onToggleLock }: Props) => {
+const LayersPanel = ({ elements, selectedId, onSelect, onToggleVisible, onToggleLock, onSaveGroupAsAsset }: Props) => {
   const items = buildLayerItems(elements);
 
   // Check if selectedId belongs to any group
@@ -92,7 +94,21 @@ const LayersPanel = ({ elements, selectedId, onSelect, onToggleVisible, onToggle
             <Icon className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="flex-1 truncate">{item.name}</span>
             {item.isGroup && (
-              <span className="text-[9px] text-muted-foreground bg-muted px-1 rounded">{item.elementIds.length}</span>
+              <>
+                <span className="text-[9px] text-muted-foreground bg-muted px-1 rounded">{item.elementIds.length}</span>
+                {onSaveGroupAsAsset && (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      onSaveGroupAsAsset(item.groupId!, item.name, elements.filter(el => el.groupId === item.groupId));
+                    }}
+                    className="p-0.5 hover:bg-primary/10 rounded text-primary"
+                    title="Sauvegarder comme asset"
+                  >
+                    <Save className="w-3 h-3" />
+                  </button>
+                )}
+              </>
             )}
             <button
               onClick={e => {

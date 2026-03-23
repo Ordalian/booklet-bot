@@ -128,6 +128,25 @@ const BookletEditor = () => {
     e.dataTransfer.dropEffect = "copy";
   }, []);
 
+  const handleSaveGroupAsAsset = useCallback(async (groupId: string, name: string, groupElements: any[]) => {
+    try {
+      const assetData = JSON.stringify(groupElements);
+      const blob = new Blob([assetData], { type: "application/json" });
+      const path = `group-assets/${Date.now()}_${sanitizeFilename(name)}.json`;
+      const { data, error } = await supabase.storage.from("uploads").upload(path, blob, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(data.path);
+      await supabase.from("assets").insert({
+        name: `📦 ${name}`,
+        url: urlData.publicUrl,
+        file_type: "group/json",
+      });
+      toast.success(`"${name}" sauvegardé comme asset`);
+    } catch (err: any) {
+      toast.error("Erreur: " + err.message);
+    }
+  }, [booklet]);
+
   const handleAutoLayout = useCallback(() => {
     const result = autoLayoutTiles(editor.elements);
     if (result.pages.length === 0) return;
@@ -281,7 +300,7 @@ const BookletEditor = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto sidebar-scroll p-3">
-            {leftSection === "pages" && (
+            <div className={leftSection === "pages" ? "" : "hidden"}>
               <PageListPanel
                 pages={booklet.pages}
                 currentIndex={booklet.currentPageIndex}
@@ -291,17 +310,19 @@ const BookletEditor = () => {
                 onDelete={booklet.deletePage}
                 onReorder={booklet.reorderPages}
               />
-            )}
-            {leftSection === "events" && <EventPanel />}
-            {leftSection === "assets" && (
+            </div>
+            <div className={leftSection === "events" ? "" : "hidden"}>
+              <EventPanel />
+            </div>
+            <div className={leftSection === "assets" ? "" : "hidden"}>
               <AssetLibrary
                 assets={booklet.assets}
                 onUpload={booklet.uploadAsset}
                 onDelete={booklet.deleteAsset}
                 onInsert={handleInsertAsset}
               />
-            )}
-            {leftSection === "settings" && (
+            </div>
+            <div className={leftSection === "settings" ? "" : "hidden"}>
               <SettingsPanel
                 brand={booklet.brand}
                 onBrandChange={booklet.setBrand}
@@ -309,7 +330,7 @@ const BookletEditor = () => {
                 onSettingsChange={booklet.setSettings}
                 onLogoUpload={handleLogoUpload}
               />
-            )}
+            </div>
           </div>
         </aside>
 
@@ -406,6 +427,7 @@ const BookletEditor = () => {
                 onSelect={editor.setSelectedId}
                 onToggleVisible={id => editor.updateElement(id, { visible: !(editor.elements.find(e => e.id === id)?.visible ?? true) })}
                 onToggleLock={id => editor.updateElement(id, { locked: !editor.elements.find(e => e.id === id)?.locked })}
+                onSaveGroupAsAsset={handleSaveGroupAsAsset}
               />
             )}
           </aside>

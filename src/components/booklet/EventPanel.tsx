@@ -169,6 +169,17 @@ const EventPanel = ({ onDropEvent }: Props) => {
     });
   };
 
+  const deleteEvent = (catId: string, sourceKey: string, eventIdx: number) => {
+    setScrapedEvents(prev => {
+      const catEvents = { ...prev[catId] };
+      const events = [...(catEvents[sourceKey] || [])];
+      events.splice(eventIdx, 1);
+      catEvents[sourceKey] = events;
+      return { ...prev, [catId]: catEvents };
+    });
+    toast.success("Événement supprimé");
+  };
+
   const uploadEventImage = async (catId: string, sourceKey: string, eventIdx: number, file: File) => {
     try {
       const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -238,6 +249,13 @@ const EventPanel = ({ onDropEvent }: Props) => {
           >
             {size === "large" ? <Maximize2 className="w-2.5 h-2.5" /> : <Minimize2 className="w-2.5 h-2.5" />}
             {size === "large" ? "Large" : "Normal"}
+          </button>
+          <button
+            onClick={() => deleteEvent(catId, sourceKey, idx)}
+            className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-md transition-colors bg-destructive/10 text-destructive hover:bg-destructive/20"
+            title="Supprimer cet événement"
+          >
+            <Trash2 className="w-2.5 h-2.5" />
           </button>
           {format === "withImage" && (
             ev.imageUrl ? (
