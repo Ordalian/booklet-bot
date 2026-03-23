@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Copy, Trash2, FileText, Calendar } from "lucide-react";
+import { Plus, Copy, Trash2, FileText } from "lucide-react";
 import { BookletPage } from "@/hooks/useBookletState";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -10,15 +10,12 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface Props {
   pages: BookletPage[];
   currentIndex: number;
   onSelect: (index: number) => void;
-  onAdd: (type: "visual" | "event") => void;
+  onAdd: () => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onReorder: (from: number, to: number) => void;
@@ -44,15 +41,13 @@ const SortablePageItem = ({
         isActive ? "bg-primary/10 ring-1 ring-primary/30 text-primary" : "hover:bg-muted"
       }`}
     >
-      <div className={`w-8 h-11 rounded border flex items-center justify-center text-[9px] font-bold shrink-0 ${
-        page.type === "event" ? "bg-accent/10 border-accent/30 text-accent" : "bg-card border-border"
-      }`}>
+      <div className="w-8 h-11 rounded border flex items-center justify-center text-[9px] font-bold shrink-0 bg-card border-border">
         {index + 1}
       </div>
       <div className="flex-1 min-w-0">
         <p className="truncate font-medium">{page.title}</p>
         <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-          {page.type === "event" ? <><Calendar className="w-2.5 h-2.5" /> Événements</> : <><FileText className="w-2.5 h-2.5" /> Visuel</>}
+          <FileText className="w-2.5 h-2.5" /> {page.elements.length} éléments
         </p>
       </div>
       <div className="opacity-0 group-hover:opacity-100 flex gap-0.5">
@@ -84,21 +79,9 @@ const PageListPanel = ({ pages, currentIndex, onSelect, onAdd, onDuplicate, onDe
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pages</h3>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
-              <Plus className="w-3.5 h-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onAdd("visual")}>
-              <FileText className="w-3.5 h-3.5 mr-2" /> Page visuelle
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAdd("event")}>
-              <Calendar className="w-3.5 h-3.5 mr-2" /> Page événements
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onAdd}>
+          <Plus className="w-3.5 h-3.5" />
+        </Button>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

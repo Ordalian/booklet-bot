@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload, ChevronDown, ChevronRight, FileSearch } from "lucide-react";
+import { Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload, ChevronDown, ChevronRight, FileSearch, GripVertical, ImageIcon, ImageOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -15,6 +15,7 @@ export interface ScrapedEvent {
   price: string;
   tags: string[];
   imageUrl?: string;
+  _format?: "withImage" | "noImage";
 }
 
 const EVENT_CATEGORIES = [
@@ -34,10 +35,10 @@ interface CategoryState {
 }
 
 interface Props {
-  onGeneratePages: (events: Record<string, ScrapedEvent[]>) => void;
+  onDropEvent?: (event: ScrapedEvent, catId: string) => void;
 }
 
-const EventPanel = ({ onGeneratePages }: Props) => {
+const EventPanel = ({ onDropEvent }: Props) => {
   const [categories, setCategories] = useState<Record<string, CategoryState>>({});
   const [scrapedEvents, setScrapedEvents] = useState<Record<string, Record<string, ScrapedEvent[]>>>({});
   const [scrapingUrls, setScrapingUrls] = useState<Set<string>>(new Set());
@@ -46,8 +47,7 @@ const EventPanel = ({ onGeneratePages }: Props) => {
   const toggleCategory = (catId: string) => {
     setCategories(prev => {
       if (prev[catId]?.enabled) {
-        const { [catId]: _, ...rest } = prev;
-        return { ...rest, [catId]: { ...prev[catId], enabled: false } };
+        return { ...prev, [catId]: { ...prev[catId], enabled: false } };
       }
       return { ...prev, [catId]: { enabled: true, links: [""], additionalInfo: "", files: [] } };
     });
@@ -78,10 +78,7 @@ const EventPanel = ({ onGeneratePages }: Props) => {
   const getDirectives = (catId: string) => {
     const cat = EVENT_CATEGORIES.find(c => c.id === catId);
     const state = categories[catId];
-    return {
-      categoryLabel: cat?.label || catId,
-      directives: state?.additionalInfo || "",
-    };
+    return { categoryLabel: cat?.label || catId, directives: state?.additionalInfo || "" };
   };
 
   const scrapeLink = useCallback(async (catId: string, url: string) => {
@@ -115,15 +112,11 @@ const EventPanel = ({ onGeneratePages }: Props) => {
   const scrapeFiles = useCallback(async (catId: string) => {
     const state = categories[catId];
     if (!state?.files.length) return;
-
     const key = `${catId}::files`;
     if (scrapingUrls.has(key)) return;
     setScrapingUrls(prev => new Set(prev).add(key));
-
     try {
       const { categoryLabel, directives } = getDirectives(catId);
-
-      // Upload files to storage and get URLs
       const fileUrls: string[] = [];
       for (const file of state.files) {
         const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -133,12 +126,10 @@ const EventPanel = ({ onGeneratePages }: Props) => {
         const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(data.path);
         fileUrls.push(urlData.publicUrl);
       }
-
       const { data, error } = await supabase.functions.invoke("scrape-preview", {
         body: { fileUrls, directives, categoryLabel },
       });
       if (error) throw error;
-
       if (data?.events?.length) {
         setScrapedEvents(prev => ({
           ...prev,
@@ -155,19 +146,100 @@ const EventPanel = ({ onGeneratePages }: Props) => {
     }
   }, [categories, scrapingUrls]);
 
-  const handleGenerate = () => {
-    const allEvents: Record<string, ScrapedEvent[]> = {};
-    for (const [catId, catState] of Object.entries(categories)) {
-      if (!catState.enabled) continue;
-      const events = Object.values(scrapedEvents[catId] || {}).flat();
-      if (events.length > 0) allEvents[catId] = events;
+  const toggleEventFormat = (catId: string, sourceKey: string, eventIdx: number) => {
+    setScrapedEvents(prev => {
+      const catEvents = { ...prev[catId] };
+      const events = [...(catEvents[sourceKey] || [])];
+      const ev = events[eventIdx];
+      events[eventIdx] = { ...ev, _format: ev._format === "noImage" ? "withImage" : "noImage" };
+      catEvents[sourceKey] = events;
+      return { ...prev, [catId]: catEvents };
+    });
+  };
+
+  const uploadEventImage = async (catId: string, sourceKey: string, eventIdx: number, file: File) => {
+    try {
+      const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `event-images/${Date.now()}_${safeName}`;
+      const { data, error } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(data.path);
+      setScrapedEvents(prev => {
+        const catEvents = { ...prev[catId] };
+        const events = [...(catEvents[sourceKey] || [])];
+        events[eventIdx] = { ...events[eventIdx], imageUrl: urlData.publicUrl, _format: "withImage" };
+        catEvents[sourceKey] = events;
+        return { ...prev, [catId]: catEvents };
+      });
+      toast.success("Image ajoutée");
+    } catch (err: any) {
+      toast.error("Erreur upload: " + err.message);
     }
-    if (Object.keys(allEvents).length === 0) {
-      toast.error("Scrapez d'abord des événements");
-      return;
-    }
-    onGeneratePages(allEvents);
-    toast.success("Pages d'événements générées !");
+  };
+
+  const handleDragStart = (e: React.DragEvent, event: ScrapedEvent, catId: string) => {
+    const cat = EVENT_CATEGORIES.find(c => c.id === catId);
+    e.dataTransfer.setData("application/json", JSON.stringify({
+      event,
+      catId,
+      catColor: cat?.color || "#333",
+      format: event._format || "withImage",
+    }));
+    e.dataTransfer.effectAllowed = "copy";
+  };
+
+  const renderEventCard = (ev: ScrapedEvent, catId: string, sourceKey: string, idx: number, catColor: string) => {
+    const format = ev._format || "withImage";
+    return (
+      <div
+        key={`${sourceKey}-${idx}`}
+        draggable
+        onDragStart={e => handleDragStart(e, ev, catId)}
+        className="text-[10px] bg-card rounded-md border border-border px-2 py-1.5 space-y-0.5 cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow"
+      >
+        <div className="flex items-start gap-1">
+          <GripVertical className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold truncate" style={{ color: catColor }}>{ev.title}</div>
+            {ev.date && <div className="text-muted-foreground">📅 {ev.date}</div>}
+            {ev.location && <div className="text-muted-foreground">📍 {ev.location}</div>}
+            {ev.description && <div className="text-muted-foreground line-clamp-2">{ev.description}</div>}
+            {ev.price && <div className="font-medium">💰 {ev.price}</div>}
+          </div>
+        </div>
+        {/* Format toggle + image upload */}
+        <div className="flex items-center gap-1 pt-1 border-t border-border/50">
+          <button
+            onClick={() => toggleEventFormat(catId, sourceKey, idx)}
+            className={`flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded ${format === "withImage" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+            title={format === "withImage" ? "Avec image" : "Sans image"}
+          >
+            {format === "withImage" ? <ImageIcon className="w-2.5 h-2.5" /> : <ImageOff className="w-2.5 h-2.5" />}
+            {format === "withImage" ? "Avec image" : "Sans image"}
+          </button>
+          {format === "withImage" && (
+            ev.imageUrl ? (
+              <img src={ev.imageUrl} alt="" className="w-8 h-6 rounded object-cover border border-border ml-auto" />
+            ) : (
+              <label className="ml-auto text-[9px] text-primary cursor-pointer hover:underline flex items-center gap-0.5">
+                <Upload className="w-2.5 h-2.5" /> Photo
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadEventImage(catId, sourceKey, idx, f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )
+          )}
+          <span className="text-[8px] text-muted-foreground ml-auto">glisser →</span>
+        </div>
+      </div>
+    );
   };
 
   const totalEvents = Object.values(scrapedEvents).reduce(
@@ -218,42 +290,25 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                   </label>
                   {state.links.map((link, li) => {
                     const isScraping = scrapingUrls.has(`${cat.id}::${link}`);
-                    const results = catEvents[link];
                     return (
-                      <div key={li}>
-                        <div className="flex gap-1">
-                          <Input
-                            value={link}
-                            onChange={e => updateLink(cat.id, li, e.target.value)}
-                            placeholder="https://..."
-                            className="text-[11px] h-7"
-                          />
-                          <Button
-                            variant="outline" size="icon" className="h-7 w-7 shrink-0"
-                            disabled={!link.trim().startsWith("http") || isScraping}
-                            onClick={() => scrapeLink(cat.id, link)}
-                          >
-                            {isScraping ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                      <div key={li} className="flex gap-1">
+                        <Input
+                          value={link}
+                          onChange={e => updateLink(cat.id, li, e.target.value)}
+                          placeholder="https://..."
+                          className="text-[11px] h-7"
+                        />
+                        <Button
+                          variant="outline" size="icon" className="h-7 w-7 shrink-0"
+                          disabled={!link.trim().startsWith("http") || isScraping}
+                          onClick={() => scrapeLink(cat.id, link)}
+                        >
+                          {isScraping ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                        </Button>
+                        {state.links.length > 1 && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeLink(cat.id, li)}>
+                            <Trash2 className="w-3 h-3" />
                           </Button>
-                          {state.links.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeLink(cat.id, li)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          )}
-                        </div>
-                        {/* Detailed event preview */}
-                        {results && results.length > 0 && (
-                          <div className="ml-1 mt-1 space-y-1">
-                            {results.map((ev, ei) => (
-                              <div key={ei} className="text-[10px] bg-muted/50 rounded px-2 py-1.5 space-y-0.5">
-                                <div className="font-semibold" style={{ color: cat.color }}>{ev.title}</div>
-                                {ev.date && <div className="text-muted-foreground">📅 {ev.date}</div>}
-                                {ev.location && <div className="text-muted-foreground">📍 {ev.location}</div>}
-                                {ev.description && <div className="text-muted-foreground line-clamp-2">{ev.description}</div>}
-                                {ev.price && <div className="font-medium">💰 {ev.price}</div>}
-                              </div>
-                            ))}
-                          </div>
                         )}
                       </div>
                     );
@@ -272,9 +327,7 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                     {state.files.map((file, fi) => (
                       <div key={fi} className="flex items-center gap-1 text-[10px] bg-muted/50 rounded px-2 py-1">
                         <span className="truncate flex-1">{file.name}</span>
-                        <span className="text-muted-foreground shrink-0">
-                          {(file.size / 1024).toFixed(0)} Ko
-                        </span>
+                        <span className="text-muted-foreground shrink-0">{(file.size / 1024).toFixed(0)} Ko</span>
                         <Button
                           variant="ghost" size="icon" className="h-5 w-5 shrink-0"
                           onClick={() => setCategories(prev => ({
@@ -290,8 +343,7 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                       <label className="flex items-center gap-1 text-[10px] text-primary cursor-pointer hover:underline">
                         <Plus className="w-2.5 h-2.5" /> Ajouter
                         <input
-                          type="file"
-                          className="hidden"
+                          type="file" className="hidden"
                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
                           multiple
                           onChange={e => {
@@ -319,21 +371,6 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                         </Button>
                       )}
                     </div>
-                    {/* Show file-scraped events */}
-                    {catEvents["__files__"]?.length > 0 && (
-                      <div className="mt-1 space-y-1">
-                        <div className="text-[9px] font-semibold text-muted-foreground">Résultats fichiers :</div>
-                        {catEvents["__files__"].map((ev, ei) => (
-                          <div key={ei} className="text-[10px] bg-muted/50 rounded px-2 py-1.5 space-y-0.5">
-                            <div className="font-semibold" style={{ color: cat.color }}>{ev.title}</div>
-                            {ev.date && <div className="text-muted-foreground">📅 {ev.date}</div>}
-                            {ev.location && <div className="text-muted-foreground">📍 {ev.location}</div>}
-                            {ev.description && <div className="text-muted-foreground line-clamp-2">{ev.description}</div>}
-                            {ev.price && <div className="font-medium">💰 {ev.price}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -348,6 +385,18 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                     className="text-[11px] mt-0.5"
                   />
                 </div>
+
+                {/* Scraped results as draggable cards */}
+                {Object.entries(catEvents).map(([sourceKey, events]) => (
+                  events.length > 0 && (
+                    <div key={sourceKey} className="space-y-1">
+                      <div className="text-[9px] font-semibold text-muted-foreground">
+                        {sourceKey === "__files__" ? "Résultats fichiers" : `Résultats`} ({events.length})
+                      </div>
+                      {events.map((ev, ei) => renderEventCard(ev, cat.id, sourceKey, ei, cat.color))}
+                    </div>
+                  )
+                ))}
               </div>
             )}
           </div>
@@ -355,9 +404,9 @@ const EventPanel = ({ onGeneratePages }: Props) => {
       })}
 
       {totalEvents > 0 && (
-        <Button onClick={handleGenerate} className="w-full text-xs" size="sm">
-          Générer {totalEvents} événement(s) en pages
-        </Button>
+        <p className="text-[10px] text-muted-foreground text-center px-2 py-1">
+          Glissez les événements sur le canvas pour les placer
+        </p>
       )}
     </div>
   );

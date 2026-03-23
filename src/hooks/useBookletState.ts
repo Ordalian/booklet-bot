@@ -5,11 +5,8 @@ import { toast } from "sonner";
 
 export interface BookletPage {
   id: string;
-  type: "visual" | "event";
   title: string;
   elements: EditorElement[];
-  eventData?: any[];
-  eventCategory?: string;
 }
 
 export interface AssetItem {
@@ -45,7 +42,7 @@ const sanitizeFilename = (name: string) =>
 
 export function useBookletState() {
   const [pages, setPages] = useState<BookletPage[]>([
-    { id: createId(), type: "visual", title: "Couverture", elements: [] },
+    { id: createId(), title: "Couverture", elements: [] },
   ]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [brand, setBrand] = useState<BrandConfig>(DEFAULT_BRAND);
@@ -66,14 +63,12 @@ export function useBookletState() {
 
   const currentPage = pages[currentPageIndex] || pages[0];
 
-  // Page management
-  const addPage = useCallback((type: "visual" | "event" = "visual", title?: string, afterIndex?: number) => {
+  // Page management — no more type distinction
+  const addPage = useCallback((title?: string, afterIndex?: number) => {
     const newPage: BookletPage = {
       id: createId(),
-      type,
-      title: title || (type === "event" ? "Page événements" : `Page ${pages.length + 1}`),
+      title: title || `Page ${pages.length + 1}`,
       elements: [],
-      eventData: type === "event" ? [] : undefined,
     };
     setPages(prev => {
       const idx = afterIndex !== undefined ? afterIndex + 1 : prev.length;
@@ -88,8 +83,7 @@ export function useBookletState() {
   const deletePage = useCallback((pageId: string) => {
     setPages(prev => {
       if (prev.length <= 1) return prev;
-      const filtered = prev.filter(p => p.id !== pageId);
-      return filtered;
+      return prev.filter(p => p.id !== pageId);
     });
     setCurrentPageIndex(prev => Math.min(prev, pages.length - 2));
     setIsDirty(true);
@@ -134,6 +128,14 @@ export function useBookletState() {
     setIsDirty(true);
   }, [currentPageIndex]);
 
+  // Add elements to current page (for drag-drop from sidebar)
+  const addElementsToCurrentPage = useCallback((newElements: EditorElement[]) => {
+    setPages(prev => prev.map((p, i) =>
+      i === currentPageIndex ? { ...p, elements: [...p.elements, ...newElements] } : p
+    ));
+    setIsDirty(true);
+  }, [currentPageIndex]);
+
   // Asset management
   const uploadAsset = useCallback(async (file: File): Promise<AssetItem> => {
     const safeName = sanitizeFilename(file.name);
@@ -168,7 +170,6 @@ export function useBookletState() {
       return;
     }
     try {
-      // Upsert template
       const templateData: any = {
         name: settings.templateName,
         description: "",
@@ -190,19 +191,16 @@ export function useBookletState() {
         setSettings(prev => ({ ...prev, templateId }));
       }
 
-      // Delete old pages
       await supabase.from("template_pages").delete().eq("template_id", templateId);
 
-      // Insert pages
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
         await supabase.from("template_pages").insert({
           template_id: templateId,
           page_number: i + 1,
           title: page.title,
-          page_type: page.type,
+          page_type: "visual",
           layout_json: page.elements as any,
-          event_data: (page.eventData || []) as any,
         });
       }
 
@@ -239,10 +237,8 @@ export function useBookletState() {
     if (tplPages && tplPages.length > 0) {
       setPages(tplPages.map((p: any) => ({
         id: createId(),
-        type: p.page_type || "visual",
         title: p.title || `Page ${p.page_number}`,
         elements: Array.isArray(p.layout_json) ? p.layout_json : [],
-        eventData: Array.isArray(p.event_data) ? p.event_data : [],
       })));
       setCurrentPageIndex(0);
     }
@@ -254,7 +250,7 @@ export function useBookletState() {
     assets, uploadAsset, deleteAsset,
     settings, setSettings,
     addPage, deletePage, duplicatePage, reorderPages, updatePage,
-    updateCurrentPageElements,
+    updateCurrentPageElements, addElementsToCurrentPage,
     saveBooklet, loadTemplate,
     isDirty,
   };
