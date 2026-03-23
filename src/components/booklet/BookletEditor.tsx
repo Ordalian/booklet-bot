@@ -38,6 +38,7 @@ const BookletEditor = () => {
   const [rightTab, setRightTab] = useState<"props" | "layers">("props");
   const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [gridEnabled, setGridEnabled] = useState(false);
 
   // Load templates list
   useEffect(() => {
