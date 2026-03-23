@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload, ChevronDown, ChevronRight, FileSearch, GripVertical, ImageIcon, ImageOff } from "lucide-react";
+import { Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload, ChevronDown, ChevronRight, FileSearch, GripVertical, ImageIcon, ImageOff, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
