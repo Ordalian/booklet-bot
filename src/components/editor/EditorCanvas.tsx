@@ -22,7 +22,7 @@ const URLImage = ({ src, ...props }: any) => {
 const GUIDE_COLOR = "#FF00FF";
 const GRID_COLOR = "#e0e0e0";
 
-const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, gridEnabled = false, gridSize = 20 }: Props) => {
+const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBatchTransform, gridEnabled = false, gridSize = 20 }: Props) => {
   const trRef = useRef<any>(null);
   const stageRef = useRef<any>(null);
   const selectedRef = useRef<any>(null);
