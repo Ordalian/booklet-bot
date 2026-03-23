@@ -112,7 +112,7 @@ export function buildEventTile(
       id: createId(), type: "text", groupId,
       x: x + PAD, y: curY, width: textW, height: descH, rotation: 0,
       text: event.description,
-      fontSize: 9, fontFamily: "Open Sans", fontStyle: "normal",
+      fontSize: DESC_SIZE, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#333",
       opacity: 1, locked: false, visible: true, name: `tile-desc`,
     });
