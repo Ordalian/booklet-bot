@@ -281,7 +281,7 @@ const BookletEditor = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto sidebar-scroll p-3">
-            {leftSection === "pages" && (
+            <div className={leftSection === "pages" ? "" : "hidden"}>
               <PageListPanel
                 pages={booklet.pages}
                 currentIndex={booklet.currentPageIndex}
@@ -291,17 +291,19 @@ const BookletEditor = () => {
                 onDelete={booklet.deletePage}
                 onReorder={booklet.reorderPages}
               />
-            )}
-            {leftSection === "events" && <EventPanel />}
-            {leftSection === "assets" && (
+            </div>
+            <div className={leftSection === "events" ? "" : "hidden"}>
+              <EventPanel />
+            </div>
+            <div className={leftSection === "assets" ? "" : "hidden"}>
               <AssetLibrary
                 assets={booklet.assets}
                 onUpload={booklet.uploadAsset}
                 onDelete={booklet.deleteAsset}
                 onInsert={handleInsertAsset}
               />
-            )}
-            {leftSection === "settings" && (
+            </div>
+            <div className={leftSection === "settings" ? "" : "hidden"}>
               <SettingsPanel
                 brand={booklet.brand}
                 onBrandChange={booklet.setBrand}
@@ -309,7 +311,7 @@ const BookletEditor = () => {
                 onSettingsChange={booklet.setSettings}
                 onLogoUpload={handleLogoUpload}
               />
-            )}
+            </div>
           </div>
         </aside>
 
