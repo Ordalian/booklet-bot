@@ -99,7 +99,7 @@ export function buildEventTile(
       id: createId(), type: "text", groupId,
       x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
       text: `📍 ${event.location}`,
-      fontSize: 10, fontFamily: "Open Sans", fontStyle: "normal",
+      fontSize: FIELD_SIZE, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#555",
       opacity: 1, locked: false, visible: true, name: `tile-location`,
     });
