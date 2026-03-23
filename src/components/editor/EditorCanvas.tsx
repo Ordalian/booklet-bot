@@ -111,7 +111,7 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
             </Fragment>
           );
         }
-        return <Text {...commonProps} text={el.text} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle} align={el.textAlign as any} fill={el.fill} width={el.width} />;
+        return <Text {...commonProps} text={el.text} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle} align={el.textAlign as any} verticalAlign="middle" fill={el.fill} width={el.width} height={el.height || 40} />;
       case "image":
         return <URLImage {...commonProps} src={el.src} width={el.width} height={el.height} />;
       case "line":
