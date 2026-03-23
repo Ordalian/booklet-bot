@@ -67,7 +67,7 @@ function buildLayerItems(elements: EditorElement[]): LayerItem[] {
   return items;
 }
 
-const LayersPanel = ({ elements, selectedId, onSelect, onToggleVisible, onToggleLock }: Props) => {
+const LayersPanel = ({ elements, selectedId, onSelect, onToggleVisible, onToggleLock, onSaveGroupAsAsset }: Props) => {
   const items = buildLayerItems(elements);
 
   // Check if selectedId belongs to any group
