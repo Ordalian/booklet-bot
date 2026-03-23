@@ -219,7 +219,7 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
               <Line key={`guide-${i}`} points={g.points} stroke={g.stroke} strokeWidth={1} dash={[4, 4]} />
             ))}
 
-            {selectedId && (
+            {selectedId && !selectedGroupId && (
               <Transformer
                 ref={trRef}
                 rotateEnabled
