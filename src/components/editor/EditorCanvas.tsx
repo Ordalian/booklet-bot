@@ -223,15 +223,18 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBa
             {/* Render grouped elements in Konva Groups with relative positioning */}
             {groups.map(([gId, groupEls]) => {
               const origin = getGroupOrigin(groupEls);
+              const isSelectedGroup = gId === selectedGroupId;
               return (
                 <Group
                   key={gId}
+                  ref={isSelectedGroup ? selectedRef : undefined}
                   x={origin.x}
                   y={origin.y}
                   draggable={!groupEls.some(e => e.locked)}
                   onClick={() => onSelect(groupEls[0]?.id || null)}
                   onTap={() => onSelect(groupEls[0]?.id || null)}
                   onDragEnd={(e) => handleGroupDragEnd(gId, e)}
+                  onTransformEnd={(e) => handleGroupTransformEnd(gId, e)}
                 >
                   {groupEls.map(el => renderElement(el, true, origin))}
                 </Group>
