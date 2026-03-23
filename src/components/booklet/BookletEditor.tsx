@@ -304,6 +304,8 @@ const BookletEditor = () => {
               onMoveDown={() => editor.selectedId && editor.moveLayer(editor.selectedId, "down")}
               hasSelection={!!editor.selectedId}
               onImageUpload={handleImageUpload}
+              gridEnabled={gridEnabled}
+              onToggleGrid={() => setGridEnabled(g => !g)}
             />
           </div>
 
