@@ -136,11 +136,14 @@ const BookletEditor = () => {
       const { data, error } = await supabase.storage.from("uploads").upload(path, blob, { upsert: true });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(data.path);
-      await supabase.from("assets").insert({
+      const { data: row, error: dbErr } = await supabase.from("assets").insert({
         name: `📦 ${name}`,
         url: urlData.publicUrl,
         file_type: "group/json",
-      });
+      }).select().single();
+      if (dbErr) throw dbErr;
+      // Update local assets state so the library refreshes immediately
+      booklet.setAssets((prev: any[]) => [{ id: row.id, name: row.name, url: row.url, fileType: row.file_type, thumbnailUrl: row.thumbnail_url }, ...prev]);
       toast.success(`"${name}" sauvegardé comme asset`);
     } catch (err: any) {
       toast.error("Erreur: " + err.message);
