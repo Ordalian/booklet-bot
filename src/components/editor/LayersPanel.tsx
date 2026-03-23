@@ -1,5 +1,6 @@
 import { EditorElement } from "./types";
-import { Eye, EyeOff, Lock, Unlock, Type, Square, Circle, Minus, Image, Package } from "lucide-react";
+import { Eye, EyeOff, Lock, Unlock, Type, Square, Circle, Minus, Image, Package, Save } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   elements: EditorElement[];
@@ -7,6 +8,7 @@ interface Props {
   onSelect: (id: string) => void;
   onToggleVisible: (id: string) => void;
   onToggleLock: (id: string) => void;
+  onSaveGroupAsAsset?: (groupId: string, name: string, elements: EditorElement[]) => void;
 }
 
 const ICONS: Record<string, any> = {
