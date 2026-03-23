@@ -195,24 +195,25 @@ const EventPanel = ({ onDropEvent }: Props) => {
         key={`${sourceKey}-${idx}`}
         draggable
         onDragStart={e => handleDragStart(e, ev, catId)}
-        className="text-[10px] bg-card rounded-md border border-border px-2 py-1.5 space-y-0.5 cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow"
+        className="text-[10px] bg-card rounded-lg border border-border overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-md transition-all"
+        style={{ borderLeftWidth: 3, borderLeftColor: catColor }}
       >
-        <div className="flex items-start gap-1">
-          <GripVertical className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold truncate" style={{ color: catColor }}>{ev.title}</div>
-            {ev.date && <div className="text-muted-foreground">📅 {ev.date}</div>}
-            {ev.location && <div className="text-muted-foreground">📍 {ev.location}</div>}
-            {ev.description && <div className="text-muted-foreground line-clamp-2">{ev.description}</div>}
-            {ev.price && <div className="font-medium">💰 {ev.price}</div>}
+        <div className="px-2.5 py-2 space-y-0.5">
+          <div className="flex items-start gap-1.5">
+            <GripVertical className="w-3 h-3 text-muted-foreground/50 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold truncate" style={{ color: catColor }}>{ev.title}</div>
+              {ev.date && <div className="text-muted-foreground">📅 {ev.date}</div>}
+              {ev.location && <div className="text-muted-foreground">📍 {ev.location}</div>}
+              {ev.description && <div className="text-muted-foreground line-clamp-2">{ev.description}</div>}
+              {ev.price && <div className="font-medium">💰 {ev.price}</div>}
+            </div>
           </div>
         </div>
-        {/* Format toggle + image upload */}
-        <div className="flex items-center gap-1 pt-1 border-t border-border/50">
+        <div className="flex items-center gap-1 px-2.5 py-1.5 bg-muted/30 border-t border-border/50">
           <button
             onClick={() => toggleEventFormat(catId, sourceKey, idx)}
-            className={`flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded ${format === "withImage" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
-            title={format === "withImage" ? "Avec image" : "Sans image"}
+            className={`flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-md transition-colors ${format === "withImage" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
           >
             {format === "withImage" ? <ImageIcon className="w-2.5 h-2.5" /> : <ImageOff className="w-2.5 h-2.5" />}
             {format === "withImage" ? "Avec image" : "Sans image"}
@@ -224,19 +225,12 @@ const EventPanel = ({ onDropEvent }: Props) => {
               <label className="ml-auto text-[9px] text-primary cursor-pointer hover:underline flex items-center gap-0.5">
                 <Upload className="w-2.5 h-2.5" /> Photo
                 <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) uploadEventImage(catId, sourceKey, idx, f);
-                    e.target.value = "";
-                  }}
+                  type="file" className="hidden" accept="image/*"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadEventImage(catId, sourceKey, idx, f); e.target.value = ""; }}
                 />
               </label>
             )
           )}
-          <span className="text-[8px] text-muted-foreground ml-auto">glisser →</span>
         </div>
       </div>
     );
