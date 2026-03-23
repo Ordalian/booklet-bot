@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload, ChevronDown, ChevronRight, FileSearch, GripVertical, ImageIcon, ImageOff } from "lucide-react";
+import { Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload, ChevronDown, ChevronRight, FileSearch, GripVertical, ImageIcon, ImageOff, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ export interface ScrapedEvent {
   tags: string[];
   imageUrl?: string;
   _format?: "withImage" | "noImage";
+  _size?: "normal" | "large";
 }
 
 const EVENT_CATEGORIES = [
@@ -157,6 +158,17 @@ const EventPanel = ({ onDropEvent }: Props) => {
     });
   };
 
+  const toggleEventSize = (catId: string, sourceKey: string, eventIdx: number) => {
+    setScrapedEvents(prev => {
+      const catEvents = { ...prev[catId] };
+      const events = [...(catEvents[sourceKey] || [])];
+      const ev = events[eventIdx];
+      events[eventIdx] = { ...ev, _size: ev._size === "large" ? "normal" : "large" };
+      catEvents[sourceKey] = events;
+      return { ...prev, [catId]: catEvents };
+    });
+  };
+
   const uploadEventImage = async (catId: string, sourceKey: string, eventIdx: number, file: File) => {
     try {
       const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -184,12 +196,14 @@ const EventPanel = ({ onDropEvent }: Props) => {
       catId,
       catColor: cat?.color || "#333",
       format: event._format || "withImage",
+      size: event._size || "normal",
     }));
     e.dataTransfer.effectAllowed = "copy";
   };
 
   const renderEventCard = (ev: ScrapedEvent, catId: string, sourceKey: string, idx: number, catColor: string) => {
     const format = ev._format || "withImage";
+    const size = ev._size || "normal";
     return (
       <div
         key={`${sourceKey}-${idx}`}
@@ -216,7 +230,14 @@ const EventPanel = ({ onDropEvent }: Props) => {
             className={`flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-md transition-colors ${format === "withImage" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
           >
             {format === "withImage" ? <ImageIcon className="w-2.5 h-2.5" /> : <ImageOff className="w-2.5 h-2.5" />}
-            {format === "withImage" ? "Avec image" : "Sans image"}
+            {format === "withImage" ? "Image" : "Sans"}
+          </button>
+          <button
+            onClick={() => toggleEventSize(catId, sourceKey, idx)}
+            className={`flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-md transition-colors ${size === "large" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+          >
+            {size === "large" ? <Maximize2 className="w-2.5 h-2.5" /> : <Minimize2 className="w-2.5 h-2.5" />}
+            {size === "large" ? "Large" : "Normal"}
           </button>
           {format === "withImage" && (
             ev.imageUrl ? (

@@ -56,18 +56,18 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
     const groupEls = elements.filter(el => el.groupId === groupId);
     const originX = Math.min(...groupEls.map(el => el.x));
     const originY = Math.min(...groupEls.map(el => el.y));
-    // Group was positioned at origin, so new position = origin + drag offset
     const newX = e.target.x();
     const newY = e.target.y();
     const dx = newX - originX;
     const dy = newY - originY;
+    // No snap-to-grid for grouped tiles — keep elements perfectly aligned
     for (const el of groupEls) {
       onTransform(el.id, {
-        x: snapToGrid(Math.round(el.x + dx)),
-        y: snapToGrid(Math.round(el.y + dy)),
+        x: Math.round(el.x + dx),
+        y: Math.round(el.y + dy),
       });
     }
-  }, [elements, onTransform, snapToGrid]);
+  }, [elements, onTransform]);
 
   const handleDragEnd = useCallback((id: string, e: any) => {
     const x = snapToGrid(Math.round(e.target.x()));
