@@ -53,12 +53,14 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
 
   // Group drag: move all elements in group together
   const handleGroupDragEnd = useCallback((groupId: string, e: any) => {
-    const dx = e.target.x();
-    const dy = e.target.y();
-    // Reset group position and apply delta to all elements
-    e.target.x(0);
-    e.target.y(0);
     const groupEls = elements.filter(el => el.groupId === groupId);
+    const originX = Math.min(...groupEls.map(el => el.x));
+    const originY = Math.min(...groupEls.map(el => el.y));
+    // Group was positioned at origin, so new position = origin + drag offset
+    const newX = e.target.x();
+    const newY = e.target.y();
+    const dx = newX - originX;
+    const dy = newY - originY;
     for (const el of groupEls) {
       onTransform(el.id, {
         x: snapToGrid(Math.round(el.x + dx)),
