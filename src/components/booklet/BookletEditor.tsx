@@ -317,6 +317,7 @@ const BookletEditor = () => {
               scale={CANVAS_SCALE}
               onSelect={editor.setSelectedId}
               onTransform={editor.updateElement}
+              gridEnabled={gridEnabled}
             />
           </div>
 
