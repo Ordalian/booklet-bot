@@ -244,11 +244,13 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBa
               <Line key={`guide-${i}`} points={g.points} stroke={g.stroke} strokeWidth={1} dash={[4, 4]} />
             ))}
 
-            {selectedId && !selectedGroupId && (
+            {selectedId && (
               <Transformer
                 ref={trRef}
-                rotateEnabled
-                enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"]}
+                rotateEnabled={!selectedGroupId}
+                enabledAnchors={selectedGroupId
+                  ? ["middle-left", "middle-right"]
+                  : ["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"]}
                 boundBoxFunc={(oldBox, newBox) => {
                   if (newBox.width < 5 || newBox.height < 5) return oldBox;
                   return newBox;
