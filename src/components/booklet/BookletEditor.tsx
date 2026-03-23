@@ -141,7 +141,7 @@ const BookletEditor = () => {
         url: urlData.publicUrl,
         file_type: "group/json",
       });
-      booklet.setAssets && toast.success(`"${name}" sauvegardé comme asset`);
+      toast.success(`"${name}" sauvegardé comme asset`);
     } catch (err: any) {
       toast.error("Erreur: " + err.message);
     }
