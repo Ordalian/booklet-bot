@@ -158,6 +158,17 @@ const EventPanel = ({ onDropEvent }: Props) => {
     });
   };
 
+  const toggleEventSize = (catId: string, sourceKey: string, eventIdx: number) => {
+    setScrapedEvents(prev => {
+      const catEvents = { ...prev[catId] };
+      const events = [...(catEvents[sourceKey] || [])];
+      const ev = events[eventIdx];
+      events[eventIdx] = { ...ev, _size: ev._size === "large" ? "normal" : "large" };
+      catEvents[sourceKey] = events;
+      return { ...prev, [catId]: catEvents };
+    });
+  };
+
   const uploadEventImage = async (catId: string, sourceKey: string, eventIdx: number, file: File) => {
     try {
       const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
