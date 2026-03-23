@@ -88,16 +88,20 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
     });
   }, [onTransform, snapToGrid]);
 
-  const renderElement = (el: EditorElement, inGroup = false) => {
+  const renderElement = (el: EditorElement, inGroup = false, groupOrigin?: { x: number; y: number }) => {
     if (!el.visible) return null;
     const isSelected = el.id === selectedId;
     const isGroupHighlighted = !inGroup && selectedGroupId && el.groupId === selectedGroupId;
 
+    // Use relative positions inside groups
+    const elX = inGroup && groupOrigin ? el.x - groupOrigin.x : el.x;
+    const elY = inGroup && groupOrigin ? el.y - groupOrigin.y : el.y;
+
     const commonProps = {
       key: el.id,
       id: el.id,
-      x: el.x,
-      y: el.y,
+      x: elX,
+      y: elY,
       rotation: el.rotation,
       opacity: el.opacity,
       draggable: !el.locked && !inGroup,
@@ -112,7 +116,7 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
       case "rect":
         return <Rect {...commonProps} width={el.width} height={el.height} fill={el.fill} stroke={isGroupHighlighted ? "#6366f1" : el.stroke} strokeWidth={isGroupHighlighted ? 2 : el.strokeWidth} cornerRadius={el.cornerRadius} />;
       case "circle":
-        return <Circle {...commonProps} x={el.x + el.width / 2} y={el.y + el.height / 2} radiusX={el.width / 2} radiusY={el.height / 2} fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
+        return <Circle {...commonProps} x={elX + el.width / 2} y={elY + el.height / 2} radiusX={el.width / 2} radiusY={el.height / 2} fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
           onDragEnd={inGroup ? undefined : (e: any) => handleDragEnd(el.id, { target: { x: () => e.target.x() - el.width / 2, y: () => e.target.y() - el.height / 2 } } as any)}
         />;
       case "text":
@@ -122,7 +126,7 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
           const bgH = (el.height || 40) + pad * 2;
           return (
             <Fragment key={el.id}>
-              <Rect x={el.x - pad} y={el.y - pad} width={bgW} height={bgH} fill={el.textBgColor} cornerRadius={el.textBgRadius || 0} rotation={el.rotation} opacity={el.opacity} />
+              <Rect x={elX - pad} y={elY - pad} width={bgW} height={bgH} fill={el.textBgColor} cornerRadius={el.textBgRadius || 0} rotation={el.rotation} opacity={el.opacity} />
               <Text {...commonProps} text={el.text} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle} align={el.textAlign as any} verticalAlign="middle" fill={el.fill} width={el.width} height={el.height || 40} />
             </Fragment>
           );
@@ -137,7 +141,7 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
     }
   };
 
-  // Separate elements into groups and ungrouped
+  // Separate elements into groups and ungrouped, compute group origins
   const { groups, ungrouped } = useMemo(() => {
     const groupMap = new Map<string, EditorElement[]>();
     const ungrouped: EditorElement[] = [];
@@ -152,6 +156,13 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
     }
     return { groups: Array.from(groupMap.entries()), ungrouped };
   }, [elements]);
+
+  // Compute group bounding box origins
+  const getGroupOrigin = useCallback((groupEls: EditorElement[]) => {
+    const minX = Math.min(...groupEls.map(e => e.x));
+    const minY = Math.min(...groupEls.map(e => e.y));
+    return { x: minX, y: minY };
+  }, []);
 
   const renderGrid = () => {
     if (!gridEnabled) return null;
@@ -202,19 +213,23 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
             {/* Render ungrouped elements */}
             {ungrouped.map(el => renderElement(el))}
 
-            {/* Render grouped elements in Konva Groups */}
-            {groups.map(([gId, groupEls]) => (
-              <Group
-                key={gId}
-                draggable={!groupEls.some(e => e.locked)}
-                onClick={() => onSelect(groupEls[0]?.id || null)}
-                onTap={() => onSelect(groupEls[0]?.id || null)}
-                onDragEnd={(e) => handleGroupDragEnd(gId, e)}
-              >
-                {groupEls.map(el => renderElement(el, true))}
-              </Group>
-            ))}
-
+            {/* Render grouped elements in Konva Groups with relative positioning */}
+            {groups.map(([gId, groupEls]) => {
+              const origin = getGroupOrigin(groupEls);
+              return (
+                <Group
+                  key={gId}
+                  x={origin.x}
+                  y={origin.y}
+                  draggable={!groupEls.some(e => e.locked)}
+                  onClick={() => onSelect(groupEls[0]?.id || null)}
+                  onTap={() => onSelect(groupEls[0]?.id || null)}
+                  onDragEnd={(e) => handleGroupDragEnd(gId, e)}
+                >
+                  {groupEls.map(el => renderElement(el, true, origin))}
+                </Group>
+              );
+            })}
             {getGuideLines().map((g, i) => (
               <Line key={`guide-${i}`} points={g.points} stroke={g.stroke} strokeWidth={1} dash={[4, 4]} />
             ))}
