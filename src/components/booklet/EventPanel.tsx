@@ -203,6 +203,50 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                 </div>
 
                 <div>
+                  <label className="text-[10px] font-semibold flex items-center gap-1 text-muted-foreground">
+                    <Upload className="w-2.5 h-2.5" /> Fichiers PDF / images
+                  </label>
+                  <div className="space-y-1 mt-0.5">
+                    {state.files.map((file, fi) => (
+                      <div key={fi} className="flex items-center gap-1 text-[10px] bg-muted/50 rounded px-2 py-1">
+                        <span className="truncate flex-1">{file.name}</span>
+                        <span className="text-muted-foreground shrink-0">
+                          {(file.size / 1024).toFixed(0)} Ko
+                        </span>
+                        <Button
+                          variant="ghost" size="icon" className="h-5 w-5 shrink-0"
+                          onClick={() => setCategories(prev => ({
+                            ...prev,
+                            [cat.id]: { ...prev[cat.id], files: prev[cat.id].files.filter((_, i) => i !== fi) },
+                          }))}
+                        >
+                          <Trash2 className="w-2.5 h-2.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    <label className="flex items-center gap-1 text-[10px] text-primary cursor-pointer hover:underline">
+                      <Plus className="w-2.5 h-2.5" /> Ajouter un fichier
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                        multiple
+                        onChange={e => {
+                          const newFiles = Array.from(e.target.files || []);
+                          if (newFiles.length > 0) {
+                            setCategories(prev => ({
+                              ...prev,
+                              [cat.id]: { ...prev[cat.id], files: [...prev[cat.id].files, ...newFiles] },
+                            }));
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div>
                   <label className="text-[10px] font-semibold text-muted-foreground">Directives</label>
                   <Textarea
                     value={state.additionalInfo}
