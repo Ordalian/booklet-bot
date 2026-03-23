@@ -1,4 +1,6 @@
-import { EditorElement, createId } from "@/components/editor/types";
+import { EditorElement, createId, A4_WIDTH } from "@/components/editor/types";
+
+export type TileSize = "normal" | "large";
 
 export interface TileEvent {
   title: string;
@@ -9,16 +11,19 @@ export interface TileEvent {
   imageUrl?: string;
 }
 
-const TILE_W = 340;
-const PAD = 12;
-const LINE_H = 1.35;
-const IMG_H = 110;
+const MARGIN = 40;
+const TILE_W_NORMAL = 340;
+const TILE_W_LARGE = A4_WIDTH - MARGIN * 2; // full width within margins
+const PAD = 14;
+const LINE_H = 1.4;
+const IMG_H_NORMAL = 110;
+const IMG_H_LARGE = 180;
 
 // Font sizes
-const TITLE_SIZE = 15;
-const FIELD_SIZE = 11;
-const DESC_SIZE = 10;
-const PRICE_SIZE = 11;
+const TITLE_SIZE = 17;
+const FIELD_SIZE = 12;
+const DESC_SIZE = 11;
+const PRICE_SIZE = 12;
 
 function estimateTextHeight(text: string, fontSize: number, maxWidth: number): number {
   const avgCharWidth = fontSize * 0.55;
@@ -33,13 +38,16 @@ export function buildEventTile(
   y: number,
   format: "withImage" | "noImage",
   catColor: string,
-  _brandPrimary?: string
+  _brandPrimary?: string,
+  size: TileSize = "normal"
 ): EditorElement[] {
   const groupId = createId();
   const elements: EditorElement[] = [];
   const isImg = format === "withImage";
+  const TILE_W = size === "large" ? TILE_W_LARGE : TILE_W_NORMAL;
+  const IMG_H = size === "large" ? IMG_H_LARGE : IMG_H_NORMAL;
   const textW = TILE_W - PAD * 2;
-  let curY = y + 8; // after accent bar
+  let curY = y + 8;
 
   // Calculate total height first
   const titleH = estimateTextHeight(event.title || "Événement", TITLE_SIZE, textW);
@@ -84,7 +92,7 @@ export function buildEventTile(
   if (event.date) {
     elements.push({
       id: createId(), type: "text", groupId,
-      x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
+      x: x + PAD, y: curY, width: textW, height: 16, rotation: 0,
       text: `📅 ${event.date}`,
       fontSize: FIELD_SIZE, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#555",
@@ -97,7 +105,7 @@ export function buildEventTile(
   if (event.location) {
     elements.push({
       id: createId(), type: "text", groupId,
-      x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
+      x: x + PAD, y: curY, width: textW, height: 16, rotation: 0,
       text: `📍 ${event.location}`,
       fontSize: FIELD_SIZE, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#555",
@@ -106,7 +114,7 @@ export function buildEventTile(
     curY += locH;
   }
 
-  // Full description (no truncation)
+  // Full description
   if (event.description) {
     elements.push({
       id: createId(), type: "text", groupId,
@@ -123,7 +131,7 @@ export function buildEventTile(
   if (event.price) {
     elements.push({
       id: createId(), type: "text", groupId,
-      x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
+      x: x + PAD, y: curY, width: textW, height: 16, rotation: 0,
       text: `💰 ${event.price}`,
       fontSize: PRICE_SIZE, fontFamily: "Open Sans", fontStyle: "bold",
       textAlign: "left", fill: catColor,
@@ -132,7 +140,7 @@ export function buildEventTile(
     curY += priceH;
   }
 
-  // Image zone below text (full width)
+  // Image zone below text
   if (isImg) {
     curY += 4;
     const imgW = TILE_W - PAD * 2;
