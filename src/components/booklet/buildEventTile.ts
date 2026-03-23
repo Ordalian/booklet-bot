@@ -14,6 +14,12 @@ const PAD = 12;
 const LINE_H = 1.35;
 const IMG_H = 110;
 
+// Font sizes
+const TITLE_SIZE = 15;
+const FIELD_SIZE = 11;
+const DESC_SIZE = 10;
+const PRICE_SIZE = 11;
+
 function estimateTextHeight(text: string, fontSize: number, maxWidth: number): number {
   const avgCharWidth = fontSize * 0.55;
   const charsPerLine = Math.max(1, Math.floor(maxWidth / avgCharWidth));
