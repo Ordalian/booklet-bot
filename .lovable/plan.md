@@ -1,87 +1,116 @@
 
 
-# Draggable Event Tiles + Unified Pages
+# Improved Layout, Grouped Tiles, Dynamic Sizing & UI Polish
 
-## Overview
+## Problems
 
-Remove the "visual vs event" page distinction. All pages become freeform visual pages where scraped events appear as draggable, editable tiles that users drop from the sidebar. Each tile has two format modes (with/without image) and an image upload area.
+1. Tile elements are separate — individual parts can be moved independently
+2. Descriptions truncated at 200 chars with fixed heights
+3. Images placed beside text instead of below
+4. No auto-layout for dropped tiles
+5. UI needs polish: sidebar too narrow, no zoom controls, flat canvas
 
 ## Changes
 
-### 1. Remove Page Type Distinction
+### 1. Add `groupId` to EditorElement (types.ts)
 
-**Files: `useBookletState.ts`, `PageListPanel.tsx`, `BookletEditor.tsx`**
+Add `groupId?: string` field. All elements in one tile share the same `groupId`.
 
-- Remove `type: "visual" | "event"` from `BookletPage` — all pages are just pages
-- Remove the "Visual / Event" page type selector from the add-page dropdown
-- Remove event-specific badges from `PageListPanel`
-- Simplify `addPage` to just create a blank page
+### 2. Rewrite `buildEventTile.ts` — Dynamic Height, Image Below, Grouped
 
-### 2. Make Scraped Events Draggable Tiles in EventPanel
-
-**File: `EventPanel.tsx`**
-
-- After scraping, each event result becomes a draggable card in the sidebar
-- Each event card has:
-  - A drag handle (using HTML5 drag or `@dnd-kit`)
-  - A format toggle: "with image" / "without image" (two icons)
-  - In "with image" mode: a small upload zone / click-to-upload area for the event illustration
-- Dragging an event onto the canvas inserts it as a group of `EditorElement[]` (rect background + title text + date text + description text + optional image)
-- The tile is fully editable once placed (user can resize, move, edit text)
-
-### 3. Event Tile Builder Function
-
-**New file: `src/components/booklet/buildEventTile.ts`**
-
-- `buildEventTile(event, x, y, format: "withImage" | "noImage", catColor, brandPrimary): EditorElement[]`
-- "withImage" format: card rect + image placeholder/uploaded image + title + date + location + description + price
-- "noImage" format: compact card rect + title + date + location + description + price (taller text area)
-- Returns an array of `EditorElement` objects positioned at x,y
-- All elements are unlocked and editable (unlike current locked pagination output)
-
-### 4. Canvas Drop Zone
-
-**File: `BookletEditor.tsx` + `EditorCanvas.tsx`**
-
-- Add `onDrop` handler on the canvas wrapper div
-- When an event tile is dropped, calculate the drop position relative to the A4 canvas (accounting for scale/scroll)
-- Call `buildEventTile()` with the drop coordinates
-- Insert resulting elements into the current page via `editor.addElement` or direct elements update
-
-### 5. Event Image Upload in Sidebar
-
-**File: `EventPanel.tsx`**
-
-- Each scraped event card in the results section gets:
-  - A toggle button (image icon) to switch between "with pic" / "without pic" format
-  - When "with pic" is active: a small clickable area to upload/attach an image
-  - Uploaded image URL is stored on the `ScrapedEvent` object (`imageUrl` field, already exists)
-  - The image is uploaded to the `uploads` bucket
-
-### 6. Remove Auto-Pagination as Default
-
-**File: `BookletEditor.tsx`**
-
-- Remove `handleGenerateEventPages` that bulk-creates event pages
-- Replace the "Générer X événements en pages" button with a note: "Drag events onto your pages"
-- Keep `eventPagination.ts` available as an optional "Auto-layout" button for users who want automatic placement
-
-## Flow
+- Assign a shared `groupId` to all tile elements
+- Calculate height dynamically from full description text (no truncation)
+- Layout: accent bar → title → date → location → full description → price → image (below text, full width)
+- Tile width: 340px fixed
 
 ```text
-1. User scrapes events in sidebar
-2. Results appear as draggable cards
-3. User toggles pic/no-pic per event, uploads images if needed
-4. User drags event card onto any page canvas
-5. Tile lands as editable elements (rect + texts + optional image)
-6. User can move, resize, edit text of each tile element
+┌────────────────────────┐
+│ ██ accent bar          │
+│ Title (bold, color)    │
+│ 📅 Date                │
+│ 📍 Location            │
+│ Full description...    │
+│ 💰 Price               │
+│ ┌────────────────────┐ │
+│ │   Image / Upload   │ │
+│ └────────────────────┘ │
+└────────────────────────┘
 ```
+
+### 3. Group-aware Canvas (EditorCanvas.tsx)
+
+- When selecting any element with a `groupId`, highlight all elements in the group
+- Wrap grouped elements in a Konva `Group` so dragging moves all together
+- Transformer applies to the group container
+
+### 4. Group-aware State (useEditorState.ts)
+
+- `deleteElement`: if element has `groupId`, delete all elements with same `groupId`
+- `duplicateElement`: duplicate entire group with new IDs and new shared `groupId`
+- `updateElement`: when moving a grouped element, offset all siblings by the same delta
+
+### 5. Auto-Layout Button (new `autoLayoutTiles.ts` + BookletEditor)
+
+- Toolbar button "Auto-Layout"
+- Collects all tiles on current page by `groupId`
+- Arranges in 2-column grid within A4 margins (40px)
+- Column width = (794 - 80 - 14) / 2 = 350px
+- Stacks tiles vertically per column, respecting each tile's dynamic height
+- If overflow, creates new pages and distributes remaining tiles
+
+### 6. UI Polish
+
+**BookletEditor.tsx:**
+- Sidebar `w-72` (wider)
+- Zoom controls: state-driven `[0.5, 0.75, 1.0]` with +/- buttons, replacing fixed `CANVAS_SCALE`
+- Canvas area: subtle drop shadow on A4 page, darker muted background
+- Page nav bar: pill-style indicator
+
+**EditorToolbar.tsx:**
+- Group tools into labeled sections with subtle divider labels ("Formes", "Historique", "Calques")
+- Add zoom buttons (+, -, percentage display)
+- Add Auto-Layout button
+
+**PropertiesPanel.tsx:**
+- Wrap sections in `Collapsible` components (Position, Apparence, Typographie, Fond)
+- Section headers with icons
+- Brand color swatches in a 5-column grid
+
+**PageListPanel.tsx:**
+- Mini A4 preview rectangle with element count
+- Active page: left accent bar + stronger background
+- Inline editable title on double-click
+
+**EventPanel.tsx:**
+- Category color left border on event cards
+- Better drag affordance with handle icon
+- Remove redundant "glisser →" text, use subtle drag cursor styling
+
+**index.css:**
+- Custom scrollbar styling for sidebar panels
+- Smooth transitions on panel switches
+
+## Files
+
+| Action | File |
+|--------|------|
+| Modify | `types.ts` — add `groupId` |
+| Rewrite | `buildEventTile.ts` — dynamic height, image below, groupId |
+| Modify | `EditorCanvas.tsx` — group rendering via Konva Group |
+| Modify | `useEditorState.ts` — group-aware delete/duplicate |
+| Create | `autoLayoutTiles.ts` — auto-arrange logic |
+| Modify | `BookletEditor.tsx` — zoom state, wider sidebar, auto-layout button, UI polish |
+| Modify | `EditorToolbar.tsx` — section labels, zoom, auto-layout button |
+| Modify | `PropertiesPanel.tsx` — collapsible sections |
+| Modify | `PageListPanel.tsx` — better thumbnails, active state |
+| Modify | `EventPanel.tsx` — card polish |
+| Modify | `index.css` — scrollbar, transitions |
 
 ## Technical Details
 
-- HTML5 Drag and Drop API for sidebar→canvas transfer (simpler than dnd-kit cross-container)
-- `dataTransfer.setData("application/json", JSON.stringify({event, format}))` on drag start
-- Canvas div `onDragOver` + `onDrop` to receive and position elements
-- Drop coordinates: `(e.clientX - canvasRect.left) / scale` for accurate A4 positioning
-- All generated elements are `locked: false` so users can freely edit them
+- `groupId` is a string from `createId()`. All elements in one tile share it.
+- Konva `Group` wraps elements with the same `groupId`, enabling unified drag/transform.
+- Dynamic height: `charsPerLine = Math.floor(textWidth / (fontSize * 0.6))`, `lines = Math.ceil(text.length / charsPerLine)`, `height = lines * fontSize * 1.3`.
+- Auto-layout sorts tiles by current Y, places in 2-column grid, calls `addPage()` for overflow.
+- Zoom stored as React state in BookletEditor, passed as `scale` prop to EditorCanvas.
 
