@@ -61,14 +61,18 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBa
     const newY = e.target.y();
     const dx = newX - originX;
     const dy = newY - originY;
-    // No snap-to-grid for grouped tiles — keep elements perfectly aligned
-    for (const el of groupEls) {
-      onTransform(el.id, {
-        x: Math.round(el.x + dx),
-        y: Math.round(el.y + dy),
-      });
+
+    if (onBatchTransform) {
+      onBatchTransform(groupEls.map(el => ({
+        id: el.id,
+        changes: { x: Math.round(el.x + dx), y: Math.round(el.y + dy) },
+      })));
+    } else {
+      for (const el of groupEls) {
+        onTransform(el.id, { x: Math.round(el.x + dx), y: Math.round(el.y + dy) });
+      }
     }
-  }, [elements, onTransform]);
+  }, [elements, onTransform, onBatchTransform]);
 
   const handleDragEnd = useCallback((id: string, e: any) => {
     const x = snapToGrid(Math.round(e.target.x()));
