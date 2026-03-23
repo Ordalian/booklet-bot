@@ -125,7 +125,7 @@ export function buildEventTile(
       id: createId(), type: "text", groupId,
       x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
       text: `💰 ${event.price}`,
-      fontSize: 10, fontFamily: "Open Sans", fontStyle: "bold",
+      fontSize: PRICE_SIZE, fontFamily: "Open Sans", fontStyle: "bold",
       textAlign: "left", fill: catColor,
       opacity: 1, locked: false, visible: true, name: `tile-price`,
     });
