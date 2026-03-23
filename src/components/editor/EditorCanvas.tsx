@@ -74,6 +74,34 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBa
     }
   }, [elements, onTransform, onBatchTransform]);
 
+  // Group transform (width resize): scale all elements proportionally relative to group origin
+  const handleGroupTransformEnd = useCallback((groupId: string, e: any) => {
+    const node = e.target;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    node.scaleX(1);
+    node.scaleY(1);
+
+    const groupEls = elements.filter(el => el.groupId === groupId);
+    const originX = Math.min(...groupEls.map(el => el.x));
+    const originY = Math.min(...groupEls.map(el => el.y));
+    const newOriginX = Math.round(node.x());
+    const newOriginY = Math.round(node.y());
+
+    if (onBatchTransform) {
+      onBatchTransform(groupEls.map(el => ({
+        id: el.id,
+        changes: {
+          x: Math.round(newOriginX + (el.x - originX) * scaleX),
+          y: Math.round(newOriginY + (el.y - originY) * scaleY),
+          width: Math.round(Math.max(5, el.width * scaleX)),
+          height: Math.round(Math.max(5, el.height * scaleY)),
+          ...(el.fontSize ? { fontSize: Math.round(el.fontSize * scaleY) } : {}),
+        },
+      })));
+    }
+  }, [elements, onBatchTransform]);
+
   const handleDragEnd = useCallback((id: string, e: any) => {
     const x = snapToGrid(Math.round(e.target.x()));
     const y = snapToGrid(Math.round(e.target.y()));
