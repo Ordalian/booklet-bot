@@ -203,6 +203,7 @@ const EventPanel = ({ onDropEvent }: Props) => {
 
   const renderEventCard = (ev: ScrapedEvent, catId: string, sourceKey: string, idx: number, catColor: string) => {
     const format = ev._format || "withImage";
+    const size = ev._size || "normal";
     return (
       <div
         key={`${sourceKey}-${idx}`}
@@ -229,7 +230,14 @@ const EventPanel = ({ onDropEvent }: Props) => {
             className={`flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-md transition-colors ${format === "withImage" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
           >
             {format === "withImage" ? <ImageIcon className="w-2.5 h-2.5" /> : <ImageOff className="w-2.5 h-2.5" />}
-            {format === "withImage" ? "Avec image" : "Sans image"}
+            {format === "withImage" ? "Image" : "Sans"}
+          </button>
+          <button
+            onClick={() => toggleEventSize(catId, sourceKey, idx)}
+            className={`flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-md transition-colors ${size === "large" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+          >
+            {size === "large" ? <Maximize2 className="w-2.5 h-2.5" /> : <Minimize2 className="w-2.5 h-2.5" />}
+            {size === "large" ? "Large" : "Normal"}
           </button>
           {format === "withImage" && (
             ev.imageUrl ? (
