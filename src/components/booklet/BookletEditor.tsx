@@ -427,6 +427,7 @@ const BookletEditor = () => {
                 onSelect={editor.setSelectedId}
                 onToggleVisible={id => editor.updateElement(id, { visible: !(editor.elements.find(e => e.id === id)?.visible ?? true) })}
                 onToggleLock={id => editor.updateElement(id, { locked: !editor.elements.find(e => e.id === id)?.locked })}
+                onSaveGroupAsAsset={handleSaveGroupAsAsset}
               />
             )}
           </aside>
