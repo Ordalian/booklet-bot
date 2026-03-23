@@ -349,6 +349,7 @@ const BookletEditor = () => {
               scale={zoom}
               onSelect={editor.setSelectedId}
               onTransform={editor.updateElement}
+              onBatchTransform={editor.batchUpdateElements}
               gridEnabled={gridEnabled}
             />
           </div>
