@@ -12,7 +12,7 @@ import SettingsPanel from "./SettingsPanel";
 import { buildEventTile } from "./buildEventTile";
 import { autoLayoutTiles } from "./autoLayoutTiles";
 import { Button } from "@/components/ui/button";
-import { Save, Download, Loader2, ChevronLeft, ChevronRight, Settings, Layers, Image, Calendar, FileText, ZoomIn, ZoomOut, LayoutGrid } from "lucide-react";
+import { Save, Download, Loader2, ChevronLeft, ChevronRight, Settings, Layers, Image, Calendar, FileText, Moon, Sun } from "lucide-react";
 import { A4_WIDTH, A4_HEIGHT, createId } from "@/components/editor/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ const BookletEditor = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [gridEnabled, setGridEnabled] = useState(false);
   const [zoom, setZoom] = useState(0.5);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
 
   useEffect(() => {
     supabase.from("templates").select("id, name").order("created_at", { ascending: false })
@@ -58,6 +59,15 @@ const BookletEditor = () => {
     const idx = ZOOM_LEVELS.indexOf(z);
     return idx > 0 ? ZOOM_LEVELS[idx - 1] : z;
   });
+
+  const toggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      document.documentElement.classList.toggle("dark", next);
+      window.localStorage.setItem("booklet-theme", next ? "dark" : "light");
+      return next;
+    });
+  };
 
   const handleImageUpload = useCallback(async (file: File) => {
     try {
@@ -223,6 +233,10 @@ const BookletEditor = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={toggleTheme}>
+            {isDark ? <Sun className="w-3.5 h-3.5 mr-1" /> : <Moon className="w-3.5 h-3.5 mr-1" />}
+            {isDark ? "Mode clair" : "Mode sombre"}
+          </Button>
           {templates.length > 0 && (
             <Select onValueChange={id => booklet.loadTemplate(id)}>
               <SelectTrigger className="h-8 text-xs w-44">
@@ -299,7 +313,7 @@ const BookletEditor = () => {
         </aside>
 
         {/* Center canvas */}
-        <main className="flex-1 flex flex-col overflow-hidden" style={{ background: "hsl(210 15% 92%)" }}>
+        <main className="flex-1 flex flex-col overflow-hidden bg-muted/40">
           <div className="shrink-0 px-3 py-2 bg-card/80 backdrop-blur-sm border-b border-border">
             <div className="flex items-center gap-2">
               <EditorToolbar
