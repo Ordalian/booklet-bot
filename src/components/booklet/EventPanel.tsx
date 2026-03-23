@@ -169,7 +169,18 @@ const EventPanel = ({ onDropEvent }: Props) => {
     });
   };
 
-  const uploadEventImage = async (catId: string, sourceKey: string, eventIdx: number, file: File) => {
+  const deleteEvent = (catId: string, sourceKey: string, eventIdx: number) => {
+    setScrapedEvents(prev => {
+      const catEvents = { ...prev[catId] };
+      const events = [...(catEvents[sourceKey] || [])];
+      events.splice(eventIdx, 1);
+      catEvents[sourceKey] = events;
+      return { ...prev, [catId]: catEvents };
+    });
+    toast.success("Événement supprimé");
+  };
+
+
     try {
       const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `event-images/${Date.now()}_${safeName}`;
