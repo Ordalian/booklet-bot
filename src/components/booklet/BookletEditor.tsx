@@ -147,7 +147,7 @@ const BookletEditor = () => {
     }
   }, [booklet]);
 
-
+  const handleAutoLayout = useCallback(() => {
     const result = autoLayoutTiles(editor.elements);
     if (result.pages.length === 0) return;
     // Apply first page to current
