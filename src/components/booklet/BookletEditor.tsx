@@ -128,7 +128,26 @@ const BookletEditor = () => {
     e.dataTransfer.dropEffect = "copy";
   }, []);
 
-  const handleAutoLayout = useCallback(() => {
+  const handleSaveGroupAsAsset = useCallback(async (groupId: string, name: string, groupElements: any[]) => {
+    try {
+      const assetData = JSON.stringify(groupElements);
+      const blob = new Blob([assetData], { type: "application/json" });
+      const path = `group-assets/${Date.now()}_${sanitizeFilename(name)}.json`;
+      const { data, error } = await supabase.storage.from("uploads").upload(path, blob, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(data.path);
+      await supabase.from("assets").insert({
+        name: `📦 ${name}`,
+        url: urlData.publicUrl,
+        file_type: "group/json",
+      });
+      booklet.setAssets && toast.success(`"${name}" sauvegardé comme asset`);
+    } catch (err: any) {
+      toast.error("Erreur: " + err.message);
+    }
+  }, [booklet]);
+
+
     const result = autoLayoutTiles(editor.elements);
     if (result.pages.length === 0) return;
     // Apply first page to current
