@@ -100,8 +100,14 @@ export function useEditorState(initialElements: EditorElement[] = []) {
     updateElements(newEls);
   }, [elements, updateElements]);
 
+  // Group-aware delete: if element has groupId, delete entire group
   const deleteElement = useCallback((id: string) => {
-    updateElements(elements.filter(el => el.id !== id));
+    const el = elements.find(e => e.id === id);
+    if (el?.groupId) {
+      updateElements(elements.filter(e => e.groupId !== el.groupId));
+    } else {
+      updateElements(elements.filter(e => e.id !== id));
+    }
     if (selectedId === id) setSelectedId(null);
   }, [elements, selectedId, updateElements]);
 
@@ -118,13 +124,29 @@ export function useEditorState(initialElements: EditorElement[] = []) {
     updateElements(newEls);
   }, [elements, updateElements]);
 
+  // Group-aware duplicate: duplicate entire group with new groupId
   const duplicateElement = useCallback((id: string) => {
     const el = elements.find(e => e.id === id);
     if (!el) return;
-    const newEl = { ...el, id: createId(), x: el.x + 20, y: el.y + 20, name: (el.name || "") + " copy" };
-    const newEls = [...elements, newEl];
-    updateElements(newEls);
-    setSelectedId(newEl.id);
+
+    if (el.groupId) {
+      const groupEls = elements.filter(e => e.groupId === el.groupId);
+      const newGroupId = createId();
+      const newEls = groupEls.map(e => ({
+        ...e,
+        id: createId(),
+        groupId: newGroupId,
+        x: e.x + 20,
+        y: e.y + 20,
+        name: (e.name || "") + " copy",
+      }));
+      updateElements([...elements, ...newEls]);
+      setSelectedId(newEls[0]?.id || null);
+    } else {
+      const newEl = { ...el, id: createId(), x: el.x + 20, y: el.y + 20, name: (el.name || "") + " copy" };
+      updateElements([...elements, newEl]);
+      setSelectedId(newEl.id);
+    }
   }, [elements, updateElements]);
 
   return {

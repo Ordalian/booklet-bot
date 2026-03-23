@@ -9,13 +9,17 @@ export interface TileEvent {
   imageUrl?: string;
 }
 
-const TILE_W_IMG = 340;
-const TILE_H_IMG = 260;
-const TILE_W_NO = 300;
-const TILE_H_NO = 180;
-const IMG_W = 120;
-const IMG_H = 100;
-const PAD = 10;
+const TILE_W = 340;
+const PAD = 12;
+const LINE_H = 1.35;
+const IMG_H = 110;
+
+function estimateTextHeight(text: string, fontSize: number, maxWidth: number): number {
+  const avgCharWidth = fontSize * 0.55;
+  const charsPerLine = Math.max(1, Math.floor(maxWidth / avgCharWidth));
+  const lines = Math.ceil(text.length / charsPerLine);
+  return Math.max(fontSize * LINE_H, lines * fontSize * LINE_H);
+}
 
 export function buildEventTile(
   event: TileEvent,
@@ -23,119 +27,88 @@ export function buildEventTile(
   y: number,
   format: "withImage" | "noImage",
   catColor: string,
-  brandPrimary?: string
+  _brandPrimary?: string
 ): EditorElement[] {
+  const groupId = createId();
   const elements: EditorElement[] = [];
   const isImg = format === "withImage";
-  const tileW = isImg ? TILE_W_IMG : TILE_W_NO;
-  const tileH = isImg ? TILE_H_IMG : TILE_H_NO;
-  const bgColor = catColor + "12"; // very light tint
+  const textW = TILE_W - PAD * 2;
+  let curY = y + 8; // after accent bar
+
+  // Calculate total height first
+  const titleH = 20;
+  const dateH = event.date ? 16 : 0;
+  const locH = event.location ? 16 : 0;
+  const descH = event.description ? estimateTextHeight(event.description, 9, textW) : 0;
+  const priceH = event.price ? 16 : 0;
+  const imgZoneH = isImg ? IMG_H + 8 : 0;
+  const totalH = 8 + titleH + 4 + dateH + locH + descH + 4 + priceH + imgZoneH + PAD;
 
   // Background card
   elements.push({
-    id: createId(),
-    type: "rect",
-    x, y,
-    width: tileW,
-    height: tileH,
-    rotation: 0,
-    fill: "#FFFFFF",
-    stroke: catColor,
-    strokeWidth: 1.5,
-    opacity: 1,
-    cornerRadius: 8,
-    locked: false,
-    visible: true,
-    name: `tile-bg-${event.title?.slice(0, 15)}`,
+    id: createId(), type: "rect", groupId,
+    x, y, width: TILE_W, height: totalH, rotation: 0,
+    fill: "#FFFFFF", stroke: catColor, strokeWidth: 1.5,
+    opacity: 1, cornerRadius: 8,
+    locked: false, visible: true, name: `tile-bg`,
   });
 
-  // Color accent bar at top
+  // Color accent bar
   elements.push({
-    id: createId(),
-    type: "rect",
-    x, y,
-    width: tileW,
-    height: 6,
-    rotation: 0,
-    fill: catColor,
-    opacity: 1,
-    cornerRadius: 8,
-    locked: false,
-    visible: true,
-    name: `tile-accent`,
+    id: createId(), type: "rect", groupId,
+    x, y, width: TILE_W, height: 5, rotation: 0,
+    fill: catColor, opacity: 1, cornerRadius: 8,
+    locked: false, visible: true, name: `tile-accent`,
   });
 
-  const textStartX = isImg ? x + IMG_W + PAD * 2 : x + PAD;
-  const textW = isImg ? tileW - IMG_W - PAD * 3 : tileW - PAD * 2;
-  let curY = y + 14;
+  curY = y + 10;
 
   // Title
   elements.push({
-    id: createId(),
-    type: "text",
-    x: textStartX,
-    y: curY,
-    width: textW,
-    height: 22,
-    rotation: 0,
+    id: createId(), type: "text", groupId,
+    x: x + PAD, y: curY, width: textW, height: titleH, rotation: 0,
     text: event.title || "Événement",
-    fontSize: 13,
-    fontFamily: "Montserrat",
-    fontStyle: "bold",
-    textAlign: "left",
-    fill: catColor,
-    opacity: 1,
-    locked: false,
-    visible: true,
-    name: `tile-title`,
+    fontSize: 13, fontFamily: "Montserrat", fontStyle: "bold",
+    textAlign: "left", fill: catColor,
+    opacity: 1, locked: false, visible: true, name: `tile-title`,
   });
-  curY += 24;
+  curY += titleH + 4;
 
   // Date
   if (event.date) {
     elements.push({
-      id: createId(),
-      type: "text",
-      x: textStartX, y: curY,
-      width: textW, height: 16, rotation: 0,
+      id: createId(), type: "text", groupId,
+      x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
       text: `📅 ${event.date}`,
       fontSize: 10, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#555",
-      opacity: 1, locked: false, visible: true,
-      name: `tile-date`,
+      opacity: 1, locked: false, visible: true, name: `tile-date`,
     });
-    curY += 16;
+    curY += dateH;
   }
 
   // Location
   if (event.location) {
     elements.push({
-      id: createId(),
-      type: "text",
-      x: textStartX, y: curY,
-      width: textW, height: 16, rotation: 0,
+      id: createId(), type: "text", groupId,
+      x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
       text: `📍 ${event.location}`,
       fontSize: 10, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#555",
-      opacity: 1, locked: false, visible: true,
-      name: `tile-location`,
+      opacity: 1, locked: false, visible: true, name: `tile-location`,
     });
-    curY += 16;
+    curY += locH;
   }
 
-  // Description
+  // Full description (no truncation)
   if (event.description) {
-    const descH = isImg ? 60 : 50;
     elements.push({
-      id: createId(),
-      type: "text",
-      x: textStartX, y: curY,
-      width: textW, height: descH, rotation: 0,
-      text: event.description.slice(0, 200),
+      id: createId(), type: "text", groupId,
+      x: x + PAD, y: curY, width: textW, height: descH, rotation: 0,
+      text: event.description,
       fontSize: 9, fontFamily: "Open Sans", fontStyle: "normal",
       textAlign: "left", fill: "#333",
-      opacity: 1, locked: false, visible: true,
-      name: `tile-desc`,
+      opacity: 1, locked: false, visible: true, name: `tile-desc`,
     });
     curY += descH + 4;
   }
@@ -143,59 +116,53 @@ export function buildEventTile(
   // Price
   if (event.price) {
     elements.push({
-      id: createId(),
-      type: "text",
-      x: textStartX, y: curY,
-      width: textW, height: 16, rotation: 0,
+      id: createId(), type: "text", groupId,
+      x: x + PAD, y: curY, width: textW, height: 14, rotation: 0,
       text: `💰 ${event.price}`,
       fontSize: 10, fontFamily: "Open Sans", fontStyle: "bold",
       textAlign: "left", fill: catColor,
-      opacity: 1, locked: false, visible: true,
-      name: `tile-price`,
+      opacity: 1, locked: false, visible: true, name: `tile-price`,
     });
+    curY += priceH;
   }
 
-  // Image placeholder or actual image
+  // Image zone below text (full width)
   if (isImg) {
+    curY += 4;
+    const imgW = TILE_W - PAD * 2;
     if (event.imageUrl) {
       elements.push({
-        id: createId(),
-        type: "image",
-        x: x + PAD, y: y + 14,
-        width: IMG_W, height: IMG_H,
-        rotation: 0,
+        id: createId(), type: "image", groupId,
+        x: x + PAD, y: curY, width: imgW, height: IMG_H, rotation: 0,
         src: event.imageUrl,
-        opacity: 1, locked: false, visible: true,
-        name: `tile-image`,
+        opacity: 1, locked: false, visible: true, name: `tile-image`,
       });
     } else {
-      // Placeholder rect
       elements.push({
-        id: createId(),
-        type: "rect",
-        x: x + PAD, y: y + 14,
-        width: IMG_W, height: IMG_H,
-        rotation: 0,
-        fill: catColor + "20",
-        stroke: catColor + "40",
-        strokeWidth: 1,
+        id: createId(), type: "rect", groupId,
+        x: x + PAD, y: curY, width: imgW, height: IMG_H, rotation: 0,
+        fill: catColor + "15", stroke: catColor + "40", strokeWidth: 1,
         cornerRadius: 4,
-        opacity: 1, locked: false, visible: true,
-        name: `tile-img-placeholder`,
+        opacity: 1, locked: false, visible: true, name: `tile-img-placeholder`,
       });
       elements.push({
-        id: createId(),
-        type: "text",
-        x: x + PAD, y: y + 14 + IMG_H / 2 - 8,
-        width: IMG_W, height: 16, rotation: 0,
-        text: "📷 Image",
-        fontSize: 10, fontFamily: "Open Sans", fontStyle: "normal",
+        id: createId(), type: "text", groupId,
+        x: x + PAD, y: curY + IMG_H / 2 - 8,
+        width: imgW, height: 16, rotation: 0,
+        text: "📷 Image", fontSize: 10, fontFamily: "Open Sans", fontStyle: "normal",
         textAlign: "center", fill: catColor + "80",
-        opacity: 1, locked: false, visible: true,
-        name: `tile-img-label`,
+        opacity: 1, locked: false, visible: true, name: `tile-img-label`,
       });
     }
   }
 
   return elements;
+}
+
+/** Get the bounding box height of a tile from its elements */
+export function getTileHeight(elements: EditorElement[]): number {
+  if (elements.length === 0) return 0;
+  const minY = Math.min(...elements.map(e => e.y));
+  const maxY = Math.max(...elements.map(e => e.y + e.height));
+  return maxY - minY;
 }
