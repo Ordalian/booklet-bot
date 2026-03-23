@@ -92,19 +92,22 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
         />;
       case "text":
         if (el.textBgEnabled && el.textBgColor) {
+          const pad = el.textBgPadding || 8;
+          const bgW = el.width + pad * 2;
+          const bgH = (el.height || 40) + pad * 2;
           return (
             <Fragment key={el.id}>
               <Rect
-                x={el.x - (el.textBgPadding || 8)}
-                y={el.y - (el.textBgPadding || 8)}
-                width={el.width + (el.textBgPadding || 8) * 2}
-                height={(el.height || 40) + (el.textBgPadding || 8) * 2}
+                x={el.x - pad}
+                y={el.y - pad}
+                width={bgW}
+                height={bgH}
                 fill={el.textBgColor}
                 cornerRadius={el.textBgRadius || 0}
                 rotation={el.rotation}
                 opacity={el.opacity}
               />
-              <Text {...commonProps} text={el.text} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle} align={el.textAlign as any} fill={el.fill} width={el.width} />
+              <Text {...commonProps} text={el.text} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle} align={el.textAlign as any} verticalAlign="middle" fill={el.fill} width={el.width} height={el.height || 40} />
             </Fragment>
           );
         }
