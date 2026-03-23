@@ -18,6 +18,11 @@ export interface EditorElement {
   strokeWidth?: number;
   opacity?: number;
   cornerRadius?: number;
+  // Text background
+  textBgEnabled?: boolean;
+  textBgColor?: string;
+  textBgPadding?: number;
+  textBgRadius?: number;
   // Image
   src?: string;
   // Line

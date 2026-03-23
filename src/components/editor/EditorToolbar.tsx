@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Type, Square, Circle, Minus, ImagePlus, Undo2, Redo2, Trash2, Copy, ArrowUp, ArrowDown } from "lucide-react";
+import { Type, Square, Circle, Minus, ImagePlus, Undo2, Redo2, Trash2, Copy, ArrowUp, ArrowDown, Grid3X3 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 
@@ -13,6 +13,8 @@ interface Props {
   onMoveDown: () => void;
   hasSelection: boolean;
   onImageUpload: (file: File) => void;
+  gridEnabled?: boolean;
+  onToggleGrid?: () => void;
 }
 
 const tools = [
@@ -22,7 +24,7 @@ const tools = [
   { type: "line" as const, icon: Minus, label: "Ligne" },
 ] as const;
 
-const EditorToolbar = ({ onAdd, onUndo, onRedo, onDelete, onDuplicate, onMoveUp, onMoveDown, hasSelection, onImageUpload }: Props) => {
+const EditorToolbar = ({ onAdd, onUndo, onRedo, onDelete, onDuplicate, onMoveUp, onMoveDown, hasSelection, onImageUpload, gridEnabled, onToggleGrid }: Props) => {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex items-center gap-1 p-2 bg-card border border-border rounded-lg flex-wrap">
@@ -55,6 +57,25 @@ const EditorToolbar = ({ onAdd, onUndo, onRedo, onDelete, onDuplicate, onMoveUp,
           </TooltipTrigger>
           <TooltipContent side="bottom">Image</TooltipContent>
         </Tooltip>
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
+        {/* Grid toggle */}
+        {onToggleGrid && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={gridEnabled ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={onToggleGrid}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Grille {gridEnabled ? "ON" : "OFF"}</TooltipContent>
+          </Tooltip>
+        )}
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 

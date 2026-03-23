@@ -38,6 +38,7 @@ const BookletEditor = () => {
   const [rightTab, setRightTab] = useState<"props" | "layers">("props");
   const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [gridEnabled, setGridEnabled] = useState(false);
 
   // Load templates list
   useEffect(() => {
@@ -303,6 +304,8 @@ const BookletEditor = () => {
               onMoveDown={() => editor.selectedId && editor.moveLayer(editor.selectedId, "down")}
               hasSelection={!!editor.selectedId}
               onImageUpload={handleImageUpload}
+              gridEnabled={gridEnabled}
+              onToggleGrid={() => setGridEnabled(g => !g)}
             />
           </div>
 
@@ -314,6 +317,7 @@ const BookletEditor = () => {
               scale={CANVAS_SCALE}
               onSelect={editor.setSelectedId}
               onTransform={editor.updateElement}
+              gridEnabled={gridEnabled}
             />
           </div>
 
