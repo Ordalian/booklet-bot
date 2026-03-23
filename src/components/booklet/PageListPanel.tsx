@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Copy, Trash2, FileText } from "lucide-react";
+import { Plus, Copy, Trash2 } from "lucide-react";
 import { BookletPage } from "@/hooks/useBookletState";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -37,20 +37,27 @@ const SortablePageItem = ({
       {...attributes}
       {...listeners}
       onClick={onSelect}
-      className={`group flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer text-xs transition-colors ${
-        isActive ? "bg-primary/10 ring-1 ring-primary/30 text-primary" : "hover:bg-muted"
+      className={`group flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer text-xs transition-all ${
+        isActive
+          ? "bg-primary/10 border border-primary/25 shadow-sm"
+          : "hover:bg-muted/60 border border-transparent"
       }`}
     >
-      <div className="w-8 h-11 rounded border flex items-center justify-center text-[9px] font-bold shrink-0 bg-card border-border">
+      {/* Mini A4 preview */}
+      <div className={`w-8 h-11 rounded border-2 flex items-center justify-center text-[9px] font-bold shrink-0 transition-colors ${
+        isActive
+          ? "border-primary bg-primary/5 text-primary"
+          : "border-border bg-card text-muted-foreground"
+      }`}>
         {index + 1}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="truncate font-medium">{page.title}</p>
-        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-          <FileText className="w-2.5 h-2.5" /> {page.elements.length} éléments
+        <p className={`truncate font-medium ${isActive ? "text-primary" : ""}`}>{page.title}</p>
+        <p className="text-[10px] text-muted-foreground">
+          {page.elements.length} éléments
         </p>
       </div>
-      <div className="opacity-0 group-hover:opacity-100 flex gap-0.5">
+      <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 transition-opacity">
         <button onClick={e => { e.stopPropagation(); onDuplicate(); }} className="p-1 hover:bg-muted rounded" title="Dupliquer">
           <Copy className="w-3 h-3" />
         </button>
@@ -78,9 +85,9 @@ const PageListPanel = ({ pages, currentIndex, onSelect, onAdd, onDuplicate, onDe
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pages</h3>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onAdd}>
-          <Plus className="w-3.5 h-3.5" />
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pages</h3>
+        <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={onAdd}>
+          <Plus className="w-3 h-3 mr-1" /> Ajouter
         </Button>
       </div>
 

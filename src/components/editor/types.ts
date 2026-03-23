@@ -31,6 +31,8 @@ export interface EditorElement {
   locked?: boolean;
   visible?: boolean;
   name?: string;
+  // Grouping (for event tiles)
+  groupId?: string;
 }
 
 export interface BrandConfig {

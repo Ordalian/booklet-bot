@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, Fragment } from "react";
+import React, { useRef, useEffect, useCallback, Fragment, useMemo } from "react";
 import { Stage, Layer, Rect, Circle, Text, Line, Transformer, Image as KImage, Group } from "react-konva";
 import { EditorElement, A4_WIDTH, A4_HEIGHT } from "./types";
 import useImage from "use-image";
@@ -26,6 +26,13 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
   const stageRef = useRef<any>(null);
   const selectedRef = useRef<any>(null);
 
+  // Find selected element's groupId
+  const selectedGroupId = useMemo(() => {
+    if (!selectedId) return null;
+    const el = elements.find(e => e.id === selectedId);
+    return el?.groupId || null;
+  }, [selectedId, elements]);
+
   useEffect(() => {
     if (trRef.current && selectedRef.current) {
       trRef.current.nodes([selectedRef.current]);
@@ -43,6 +50,22 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
       onSelect(null);
     }
   }, [onSelect]);
+
+  // Group drag: move all elements in group together
+  const handleGroupDragEnd = useCallback((groupId: string, e: any) => {
+    const dx = e.target.x();
+    const dy = e.target.y();
+    // Reset group position and apply delta to all elements
+    e.target.x(0);
+    e.target.y(0);
+    const groupEls = elements.filter(el => el.groupId === groupId);
+    for (const el of groupEls) {
+      onTransform(el.id, {
+        x: snapToGrid(Math.round(el.x + dx)),
+        y: snapToGrid(Math.round(el.y + dy)),
+      });
+    }
+  }, [elements, onTransform, snapToGrid]);
 
   const handleDragEnd = useCallback((id: string, e: any) => {
     const x = snapToGrid(Math.round(e.target.x()));
@@ -65,9 +88,11 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
     });
   }, [onTransform, snapToGrid]);
 
-  const renderElement = (el: EditorElement) => {
+  const renderElement = (el: EditorElement, inGroup = false) => {
     if (!el.visible) return null;
     const isSelected = el.id === selectedId;
+    const isGroupHighlighted = !inGroup && selectedGroupId && el.groupId === selectedGroupId;
+
     const commonProps = {
       key: el.id,
       id: el.id,
@@ -75,20 +100,20 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
       y: el.y,
       rotation: el.rotation,
       opacity: el.opacity,
-      draggable: !el.locked,
+      draggable: !el.locked && !inGroup,
       onClick: () => onSelect(el.id),
       onTap: () => onSelect(el.id),
-      onDragEnd: (e: any) => handleDragEnd(el.id, e),
+      onDragEnd: inGroup ? undefined : (e: any) => handleDragEnd(el.id, e),
       onTransformEnd: (e: any) => handleTransformEnd(el.id, e),
       ref: isSelected ? selectedRef : undefined,
     };
 
     switch (el.type) {
       case "rect":
-        return <Rect {...commonProps} width={el.width} height={el.height} fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth} cornerRadius={el.cornerRadius} />;
+        return <Rect {...commonProps} width={el.width} height={el.height} fill={el.fill} stroke={isGroupHighlighted ? "#6366f1" : el.stroke} strokeWidth={isGroupHighlighted ? 2 : el.strokeWidth} cornerRadius={el.cornerRadius} />;
       case "circle":
         return <Circle {...commonProps} x={el.x + el.width / 2} y={el.y + el.height / 2} radiusX={el.width / 2} radiusY={el.height / 2} fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
-          onDragEnd={(e: any) => handleDragEnd(el.id, { target: { x: () => e.target.x() - el.width / 2, y: () => e.target.y() - el.height / 2 } } as any)}
+          onDragEnd={inGroup ? undefined : (e: any) => handleDragEnd(el.id, { target: { x: () => e.target.x() - el.width / 2, y: () => e.target.y() - el.height / 2 } } as any)}
         />;
       case "text":
         if (el.textBgEnabled && el.textBgColor) {
@@ -97,16 +122,7 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
           const bgH = (el.height || 40) + pad * 2;
           return (
             <Fragment key={el.id}>
-              <Rect
-                x={el.x - pad}
-                y={el.y - pad}
-                width={bgW}
-                height={bgH}
-                fill={el.textBgColor}
-                cornerRadius={el.textBgRadius || 0}
-                rotation={el.rotation}
-                opacity={el.opacity}
-              />
+              <Rect x={el.x - pad} y={el.y - pad} width={bgW} height={bgH} fill={el.textBgColor} cornerRadius={el.textBgRadius || 0} rotation={el.rotation} opacity={el.opacity} />
               <Text {...commonProps} text={el.text} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle} align={el.textAlign as any} verticalAlign="middle" fill={el.fill} width={el.width} height={el.height || 40} />
             </Fragment>
           );
@@ -121,7 +137,22 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
     }
   };
 
-  // Grid lines
+  // Separate elements into groups and ungrouped
+  const { groups, ungrouped } = useMemo(() => {
+    const groupMap = new Map<string, EditorElement[]>();
+    const ungrouped: EditorElement[] = [];
+    for (const el of elements) {
+      if (el.groupId) {
+        const arr = groupMap.get(el.groupId) || [];
+        arr.push(el);
+        groupMap.set(el.groupId, arr);
+      } else {
+        ungrouped.push(el);
+      }
+    }
+    return { groups: Array.from(groupMap.entries()), ungrouped };
+  }, [elements]);
+
   const renderGrid = () => {
     if (!gridEnabled) return null;
     const lines: React.ReactNode[] = [];
@@ -134,7 +165,6 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
     return <>{lines}</>;
   };
 
-  // Snapping guides
   const getGuideLines = () => {
     if (!selectedId) return [];
     const lines: { points: number[]; stroke: string }[] = [];
@@ -153,40 +183,56 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
 
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-muted/30 flex items-center justify-center" style={{ padding: 16 }}>
-      <Stage
-        ref={stageRef}
-        width={A4_WIDTH * scale}
-        height={A4_HEIGHT * scale}
-        scaleX={scale}
-        scaleY={scale}
-        onClick={handleStageClick}
-        onTap={handleStageClick}
-        style={{ background: "#f0f0f0", boxShadow: "0 2px 16px rgba(0,0,0,0.12)" }}
-      >
-        <Layer>
-          <Rect id="bg" x={0} y={0} width={A4_WIDTH} height={A4_HEIGHT} fill="white" />
-          {renderGrid()}
-          <Rect x={40} y={40} width={A4_WIDTH - 80} height={A4_HEIGHT - 80} stroke="#eee" strokeWidth={0.5} dash={[4, 4]} />
+      <div style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08)", borderRadius: 4 }}>
+        <Stage
+          ref={stageRef}
+          width={A4_WIDTH * scale}
+          height={A4_HEIGHT * scale}
+          scaleX={scale}
+          scaleY={scale}
+          onClick={handleStageClick}
+          onTap={handleStageClick}
+          style={{ background: "#fff" }}
+        >
+          <Layer>
+            <Rect id="bg" x={0} y={0} width={A4_WIDTH} height={A4_HEIGHT} fill="white" />
+            {renderGrid()}
+            <Rect x={40} y={40} width={A4_WIDTH - 80} height={A4_HEIGHT - 80} stroke="#eee" strokeWidth={0.5} dash={[4, 4]} />
 
-          {elements.map(renderElement)}
+            {/* Render ungrouped elements */}
+            {ungrouped.map(el => renderElement(el))}
 
-          {getGuideLines().map((g, i) => (
-            <Line key={`guide-${i}`} points={g.points} stroke={g.stroke} strokeWidth={1} dash={[4, 4]} />
-          ))}
+            {/* Render grouped elements in Konva Groups */}
+            {groups.map(([gId, groupEls]) => (
+              <Group
+                key={gId}
+                draggable={!groupEls.some(e => e.locked)}
+                onClick={() => onSelect(groupEls[0]?.id || null)}
+                onTap={() => onSelect(groupEls[0]?.id || null)}
+                onDragEnd={(e) => handleGroupDragEnd(gId, e)}
+              >
+                {groupEls.map(el => renderElement(el, true))}
+              </Group>
+            ))}
 
-          {selectedId && (
-            <Transformer
-              ref={trRef}
-              rotateEnabled
-              enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"]}
-              boundBoxFunc={(oldBox, newBox) => {
-                if (newBox.width < 5 || newBox.height < 5) return oldBox;
-                return newBox;
-              }}
-            />
-          )}
-        </Layer>
-      </Stage>
+            {getGuideLines().map((g, i) => (
+              <Line key={`guide-${i}`} points={g.points} stroke={g.stroke} strokeWidth={1} dash={[4, 4]} />
+            ))}
+
+            {selectedId && (
+              <Transformer
+                ref={trRef}
+                rotateEnabled
+                enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"]}
+                boundBoxFunc={(oldBox, newBox) => {
+                  if (newBox.width < 5 || newBox.height < 5) return oldBox;
+                  return newBox;
+                }}
+              />
+            )}
+          </Layer>
+        </Stage>
+      </div>
     </div>
   );
 };
