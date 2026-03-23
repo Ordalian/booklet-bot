@@ -196,6 +196,7 @@ const EventPanel = ({ onDropEvent }: Props) => {
       catId,
       catColor: cat?.color || "#333",
       format: event._format || "withImage",
+      size: event._size || "normal",
     }));
     e.dataTransfer.effectAllowed = "copy";
   };
