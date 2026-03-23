@@ -239,6 +239,13 @@ const EventPanel = ({ onDropEvent }: Props) => {
             {size === "large" ? <Maximize2 className="w-2.5 h-2.5" /> : <Minimize2 className="w-2.5 h-2.5" />}
             {size === "large" ? "Large" : "Normal"}
           </button>
+          <button
+            onClick={() => deleteEvent(catId, sourceKey, idx)}
+            className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-md transition-colors bg-destructive/10 text-destructive hover:bg-destructive/20"
+            title="Supprimer cet événement"
+          >
+            <Trash2 className="w-2.5 h-2.5" />
+          </button>
           {format === "withImage" && (
             ev.imageUrl ? (
               <img src={ev.imageUrl} alt="" className="w-8 h-6 rounded object-cover border border-border ml-auto" />
