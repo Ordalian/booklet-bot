@@ -9,6 +9,7 @@ interface Props {
   scale: number;
   onSelect: (id: string | null) => void;
   onTransform: (id: string, changes: Partial<EditorElement>) => void;
+  onBatchTransform?: (updates: { id: string; changes: Partial<EditorElement> }[]) => void;
   gridEnabled?: boolean;
   gridSize?: number;
 }
@@ -21,7 +22,7 @@ const URLImage = ({ src, ...props }: any) => {
 const GUIDE_COLOR = "#FF00FF";
 const GRID_COLOR = "#e0e0e0";
 
-const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, gridEnabled = false, gridSize = 20 }: Props) => {
+const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, onBatchTransform, gridEnabled = false, gridSize = 20 }: Props) => {
   const trRef = useRef<any>(null);
   const stageRef = useRef<any>(null);
   const selectedRef = useRef<any>(null);
@@ -60,14 +61,18 @@ const EditorCanvas = ({ elements, selectedId, scale, onSelect, onTransform, grid
     const newY = e.target.y();
     const dx = newX - originX;
     const dy = newY - originY;
-    // No snap-to-grid for grouped tiles — keep elements perfectly aligned
-    for (const el of groupEls) {
-      onTransform(el.id, {
-        x: Math.round(el.x + dx),
-        y: Math.round(el.y + dy),
-      });
+
+    if (onBatchTransform) {
+      onBatchTransform(groupEls.map(el => ({
+        id: el.id,
+        changes: { x: Math.round(el.x + dx), y: Math.round(el.y + dy) },
+      })));
+    } else {
+      for (const el of groupEls) {
+        onTransform(el.id, { x: Math.round(el.x + dx), y: Math.round(el.y + dy) });
+      }
     }
-  }, [elements, onTransform]);
+  }, [elements, onTransform, onBatchTransform]);
 
   const handleDragEnd = useCallback((id: string, e: any) => {
     const x = snapToGrid(Math.round(e.target.x()));

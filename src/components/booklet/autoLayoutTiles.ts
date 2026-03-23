@@ -8,6 +8,7 @@ interface TileGroup {
   groupId: string;
   elements: EditorElement[];
   height: number;
+  width: number;
 }
 
 function getTileGroups(elements: EditorElement[]): { tiles: TileGroup[]; loose: EditorElement[] } {
@@ -26,12 +27,14 @@ function getTileGroups(elements: EditorElement[]): { tiles: TileGroup[]; loose: 
 
   const tiles: TileGroup[] = [];
   for (const [groupId, els] of groupMap) {
+    const minX = Math.min(...els.map(e => e.x));
+    const maxX = Math.max(...els.map(e => e.x + e.width));
     const minY = Math.min(...els.map(e => e.y));
     const maxY = Math.max(...els.map(e => e.y + e.height));
-    tiles.push({ groupId, elements: els, height: maxY - minY });
+    tiles.push({ groupId, elements: els, height: maxY - minY, width: maxX - minX });
   }
 
-  // Sort by current Y position
+  // Sort by current Y position for stable ordering
   tiles.sort((a, b) => {
     const aY = Math.min(...a.elements.map(e => e.y));
     const bY = Math.min(...b.elements.map(e => e.y));
@@ -50,7 +53,6 @@ function repositionTile(tile: TileGroup, newX: number, newY: number): EditorElem
 }
 
 export interface AutoLayoutResult {
-  /** Elements for page 0 (current page, including loose elements) */
   pages: EditorElement[][];
 }
 
@@ -61,20 +63,39 @@ export function autoLayoutTiles(elements: EditorElement[]): AutoLayoutResult {
     return { pages: [elements] };
   }
 
+  const usableWidth = A4_WIDTH - MARGIN * 2;
+  const isLarge = (tile: TileGroup) => tile.width > COL_WIDTH + 20;
+
   const pages: EditorElement[][] = [];
   let currentPage: EditorElement[] = [...loose];
   let col1Y = MARGIN;
   let col2Y = MARGIN;
 
   for (const tile of tiles) {
-    // Pick the shorter column
+    // Large tiles span full width
+    if (isLarge(tile)) {
+      const startY = Math.max(col1Y, col2Y);
+      if (startY + tile.height > A4_HEIGHT - MARGIN) {
+        pages.push(currentPage);
+        currentPage = [];
+        col1Y = MARGIN;
+        col2Y = MARGIN;
+      }
+      const placeY = Math.max(col1Y, col2Y);
+      const repositioned = repositionTile(tile, MARGIN, placeY);
+      currentPage.push(...repositioned);
+      col1Y = placeY + tile.height + GAP;
+      col2Y = col1Y;
+      continue;
+    }
+
+    // Normal tile — pick shorter column
     const useCol1 = col1Y <= col2Y;
     const colX = useCol1 ? MARGIN : MARGIN + COL_WIDTH + GAP;
     const colY = useCol1 ? col1Y : col2Y;
 
-    // Check if tile fits on current page
     if (colY + tile.height > A4_HEIGHT - MARGIN) {
-      // Try the other column
+      // Try other column
       const otherY = useCol1 ? col2Y : col1Y;
       const otherX = useCol1 ? MARGIN + COL_WIDTH + GAP : MARGIN;
 
@@ -86,7 +107,7 @@ export function autoLayoutTiles(elements: EditorElement[]): AutoLayoutResult {
         continue;
       }
 
-      // Need new page
+      // New page
       pages.push(currentPage);
       currentPage = [];
       col1Y = MARGIN;

@@ -100,6 +100,16 @@ export function useEditorState(initialElements: EditorElement[] = []) {
     updateElements(newEls);
   }, [elements, updateElements]);
 
+  /** Batch-update multiple elements at once (for group drags) */
+  const batchUpdateElements = useCallback((updates: { id: string; changes: Partial<EditorElement> }[]) => {
+    const changeMap = new Map(updates.map(u => [u.id, u.changes]));
+    const newEls = elements.map(el => {
+      const ch = changeMap.get(el.id);
+      return ch ? { ...el, ...ch } : el;
+    });
+    updateElements(newEls);
+  }, [elements, updateElements]);
+
   // Group-aware delete: if element has groupId, delete entire group
   const deleteElement = useCallback((id: string) => {
     const el = elements.find(e => e.id === id);
@@ -157,6 +167,7 @@ export function useEditorState(initialElements: EditorElement[] = []) {
     setBrandConfig,
     addElement,
     updateElement,
+    batchUpdateElements,
     deleteElement,
     moveLayer,
     duplicateElement,
