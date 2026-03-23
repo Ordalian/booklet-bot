@@ -74,7 +74,7 @@ export function buildEventTile(
     id: createId(), type: "text", groupId,
     x: x + PAD, y: curY, width: textW, height: titleH, rotation: 0,
     text: event.title || "Événement",
-    fontSize: 13, fontFamily: "Montserrat", fontStyle: "bold",
+    fontSize: TITLE_SIZE, fontFamily: "Montserrat", fontStyle: "bold",
     textAlign: "left", fill: catColor,
     opacity: 1, locked: false, visible: true, name: `tile-title`,
   });
