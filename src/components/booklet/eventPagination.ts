@@ -4,11 +4,20 @@ import { BrandConfig } from "@/components/editor/types";
 
 const MARGIN = 40;
 const BANNER_HEIGHT = 50;
-const HEADER_HEIGHT = 60;
-const EVENT_CARD_HEIGHT = 140;
-const EVENT_CARD_GAP = 12;
-const USABLE_HEIGHT = A4_HEIGHT - MARGIN * 2 - BANNER_HEIGHT - HEADER_HEIGHT;
-const EVENTS_PER_PAGE = Math.floor(USABLE_HEIGHT / (EVENT_CARD_HEIGHT + EVENT_CARD_GAP));
+const HEADER_HEIGHT = 56;
+const FOOTER_GAP = 8;
+const USABLE_TOP = MARGIN + HEADER_HEIGHT + 8;
+const USABLE_BOTTOM = A4_HEIGHT - MARGIN - BANNER_HEIGHT - FOOTER_GAP;
+const USABLE_HEIGHT = USABLE_BOTTOM - USABLE_TOP;
+const COL_GAP = 14;
+const CARD_PADDING = 10;
+const COL_WIDTH = (A4_WIDTH - MARGIN * 2 - COL_GAP) / 2;
+const IMAGE_HEIGHT = 80;
+const TEXT_BLOCK_MIN = 90;
+const CARD_HEIGHT = IMAGE_HEIGHT + TEXT_BLOCK_MIN + CARD_PADDING * 2 + 4; // ~194
+const ROW_GAP = 12;
+const CARDS_PER_COL = Math.floor(USABLE_HEIGHT / (CARD_HEIGHT + ROW_GAP));
+const CARDS_PER_PAGE = CARDS_PER_COL * 2;
 
 interface EventCategory {
   id: string;
@@ -17,167 +26,198 @@ interface EventCategory {
   events: ScrapedEvent[];
 }
 
+function buildCard(
+  event: ScrapedEvent,
+  x: number,
+  y: number,
+  catColor: string,
+  brandPrimary: string,
+): EditorElement[] {
+  const els: EditorElement[] = [];
+
+  // Card bg
+  els.push({
+    id: createId(), type: "rect",
+    x, y, width: COL_WIDTH, height: CARD_HEIGHT,
+    rotation: 0, opacity: 1,
+    fill: "#FFFFFF", cornerRadius: 8,
+    stroke: catColor, strokeWidth: 1.5,
+    visible: true, locked: true, name: `card-${event.title}`,
+  });
+
+  // Image placeholder
+  const imgSrc = (event as any).imageUrl;
+  if (imgSrc) {
+    els.push({
+      id: createId(), type: "image",
+      x: x + CARD_PADDING, y: y + CARD_PADDING,
+      width: COL_WIDTH - CARD_PADDING * 2, height: IMAGE_HEIGHT,
+      rotation: 0, opacity: 1, src: imgSrc,
+      visible: true, locked: true, name: "card-img",
+    });
+  } else {
+    // Colored placeholder
+    els.push({
+      id: createId(), type: "rect",
+      x: x + CARD_PADDING, y: y + CARD_PADDING,
+      width: COL_WIDTH - CARD_PADDING * 2, height: IMAGE_HEIGHT,
+      rotation: 0, opacity: 0.12,
+      fill: catColor, cornerRadius: 4,
+      visible: true, locked: true, name: "card-img-placeholder",
+    });
+    els.push({
+      id: createId(), type: "text",
+      x: x + CARD_PADDING, y: y + CARD_PADDING + IMAGE_HEIGHT / 2 - 8,
+      width: COL_WIDTH - CARD_PADDING * 2, height: 16,
+      rotation: 0, opacity: 0.4,
+      text: "📷 Illustration", fontSize: 10, fontFamily: "Lato",
+      textAlign: "center", fill: catColor,
+      visible: true, locked: true, name: "card-img-label",
+    });
+  }
+
+  const textY = y + CARD_PADDING + IMAGE_HEIGHT + 6;
+  const textW = COL_WIDTH - CARD_PADDING * 2;
+
+  // Title
+  els.push({
+    id: createId(), type: "text",
+    x: x + CARD_PADDING, y: textY,
+    width: textW, height: 18,
+    rotation: 0, opacity: 1,
+    text: event.title, fontSize: 11,
+    fontFamily: "Montserrat", fontStyle: "bold",
+    textAlign: "left", fill: "#1A1A2E",
+    visible: true, locked: true, name: "card-title",
+  });
+
+  // Date + Location
+  const meta = [event.date, event.location].filter(Boolean).join(" • ");
+  if (meta) {
+    els.push({
+      id: createId(), type: "text",
+      x: x + CARD_PADDING, y: textY + 20,
+      width: textW, height: 14,
+      rotation: 0, opacity: 1,
+      text: meta, fontSize: 8.5,
+      fontFamily: "Lato", fill: catColor,
+      visible: true, locked: true, name: "card-meta",
+    });
+  }
+
+  // Description (truncated to fit)
+  const desc = (event.description || "").slice(0, 120);
+  if (desc) {
+    els.push({
+      id: createId(), type: "text",
+      x: x + CARD_PADDING, y: textY + 36,
+      width: textW, height: 36,
+      rotation: 0, opacity: 1,
+      text: desc, fontSize: 7.5,
+      fontFamily: "Lato", fill: "#555555",
+      visible: true, locked: true, name: "card-desc",
+    });
+  }
+
+  // Price
+  if (event.price) {
+    els.push({
+      id: createId(), type: "text",
+      x: x + CARD_PADDING, y: textY + TEXT_BLOCK_MIN - 18,
+      width: textW, height: 14,
+      rotation: 0, opacity: 1,
+      text: event.price, fontSize: 8,
+      fontFamily: "Montserrat", fontStyle: "bold",
+      fill: brandPrimary,
+      visible: true, locked: true, name: "card-price",
+    });
+  }
+
+  return els;
+}
+
 export function paginateEvents(
   categories: EventCategory[],
   brand: BrandConfig,
 ): EditorElement[][] {
   const allPages: EditorElement[][] = [];
-  let currentPageElements: EditorElement[] = [];
-  let yOffset = MARGIN + HEADER_HEIGHT;
-  let eventCountOnPage = 0;
-
-  const flushPage = (categoryLabel: string, categoryColor: string) => {
-    // Add header
-    currentPageElements.unshift({
-      id: createId(),
-      type: "rect",
-      x: 0, y: 0,
-      width: A4_WIDTH, height: HEADER_HEIGHT,
-      rotation: 0, opacity: 1,
-      fill: brand.colors[0] || "#E85D04",
-      visible: true, locked: true,
-      name: "header-bg",
-    });
-    currentPageElements.unshift({
-      id: createId(),
-      type: "text",
-      x: MARGIN, y: 15,
-      width: A4_WIDTH - MARGIN * 2, height: 30,
-      rotation: 0, opacity: 1,
-      text: categoryLabel,
-      fontSize: 18,
-      fontFamily: "Montserrat",
-      fontStyle: "bold",
-      textAlign: "left",
-      fill: "#FFFFFF",
-      visible: true, locked: true,
-      name: "header-title",
-    });
-
-    // Add banner
-    currentPageElements.push({
-      id: createId(),
-      type: "rect",
-      x: 0, y: A4_HEIGHT - BANNER_HEIGHT,
-      width: A4_WIDTH, height: BANNER_HEIGHT,
-      rotation: 0, opacity: 0.9,
-      fill: brand.colors[1] || "#0077B6",
-      visible: true, locked: true,
-      name: "contact-banner",
-    });
-    currentPageElements.push({
-      id: createId(),
-      type: "text",
-      x: MARGIN, y: A4_HEIGHT - BANNER_HEIGHT + 12,
-      width: A4_WIDTH - MARGIN * 2, height: 26,
-      rotation: 0, opacity: 1,
-      text: allPages.length % 2 === 0 ? "Points d'accueil" : "Horaires & Contact",
-      fontSize: 11,
-      fontFamily: "Montserrat",
-      fontStyle: "bold",
-      fill: "#FFFFFF",
-      visible: true, locked: true,
-      name: "banner-text",
-    });
-
-    allPages.push(currentPageElements);
-    currentPageElements = [];
-    yOffset = MARGIN + HEADER_HEIGHT;
-    eventCountOnPage = 0;
-  };
+  const brandPrimary = brand.colors[0] || "#E85D04";
+  const brandSecondary = brand.colors[1] || "#0077B6";
 
   for (const cat of categories) {
-    for (const event of cat.events) {
-      if (eventCountOnPage >= EVENTS_PER_PAGE) {
-        flushPage(cat.label, cat.color);
-      }
+    const events = cat.events;
+    if (events.length === 0) continue;
 
-      // Card background
-      currentPageElements.push({
-        id: createId(),
-        type: "rect",
-        x: MARGIN, y: yOffset,
-        width: A4_WIDTH - MARGIN * 2, height: EVENT_CARD_HEIGHT,
-        rotation: 0, opacity: 1,
-        fill: "#F8F9FA",
-        cornerRadius: 8,
-        stroke: cat.color,
-        strokeWidth: 1,
-        visible: true, locked: true,
-        name: `event-card-${event.title}`,
+    const totalPages = Math.ceil(events.length / CARDS_PER_PAGE);
+
+    for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+      const pageElements: EditorElement[] = [];
+      const globalPageNum = allPages.length;
+      const isOdd = globalPageNum % 2 === 0; // 0-indexed, so first page = odd
+
+      // --- Header with category type ---
+      pageElements.push({
+        id: createId(), type: "rect",
+        x: 0, y: 0, width: A4_WIDTH, height: HEADER_HEIGHT,
+        rotation: 0, opacity: 1, fill: cat.color,
+        visible: true, locked: true, name: "header-bg",
       });
-
-      // Title
-      currentPageElements.push({
-        id: createId(),
-        type: "text",
-        x: MARGIN + 12, y: yOffset + 10,
-        width: A4_WIDTH - MARGIN * 2 - 24, height: 22,
+      pageElements.push({
+        id: createId(), type: "text",
+        x: MARGIN, y: 10, width: A4_WIDTH - MARGIN * 2, height: 24,
         rotation: 0, opacity: 1,
-        text: event.title,
-        fontSize: 14,
-        fontFamily: "Montserrat",
-        fontStyle: "bold",
-        fill: "#1A1A2E",
-        visible: true, locked: true,
-        name: "event-title",
+        text: cat.label.toUpperCase(),
+        fontSize: 16, fontFamily: "Montserrat", fontStyle: "bold",
+        textAlign: "left", fill: "#FFFFFF",
+        visible: true, locked: true, name: "header-category",
       });
-
-      // Date + Location
-      currentPageElements.push({
-        id: createId(),
-        type: "text",
-        x: MARGIN + 12, y: yOffset + 34,
-        width: A4_WIDTH - MARGIN * 2 - 24, height: 16,
-        rotation: 0, opacity: 1,
-        text: [event.date, event.location].filter(Boolean).join(" • "),
-        fontSize: 10,
-        fontFamily: "Lato",
-        fill: cat.color,
-        visible: true, locked: true,
-        name: "event-meta",
-      });
-
-      // Description
-      currentPageElements.push({
-        id: createId(),
-        type: "text",
-        x: MARGIN + 12, y: yOffset + 54,
-        width: A4_WIDTH - MARGIN * 2 - 24, height: 60,
-        rotation: 0, opacity: 1,
-        text: (event.description || "").slice(0, 200),
-        fontSize: 9,
-        fontFamily: "Lato",
-        fill: "#555555",
-        visible: true, locked: true,
-        name: "event-desc",
-      });
-
-      // Price tag
-      if (event.price) {
-        currentPageElements.push({
-          id: createId(),
-          type: "text",
-          x: MARGIN + 12, y: yOffset + EVENT_CARD_HEIGHT - 22,
-          width: 150, height: 14,
-          rotation: 0, opacity: 1,
-          text: event.price,
-          fontSize: 9,
-          fontFamily: "Montserrat",
-          fontStyle: "bold",
-          fill: brand.colors[0] || "#E85D04",
-          visible: true, locked: true,
-          name: "event-price",
+      // Page sub-info
+      if (totalPages > 1) {
+        pageElements.push({
+          id: createId(), type: "text",
+          x: MARGIN, y: 34, width: A4_WIDTH - MARGIN * 2, height: 14,
+          rotation: 0, opacity: 0.8,
+          text: `Page ${pageIdx + 1} / ${totalPages}`,
+          fontSize: 9, fontFamily: "Lato",
+          textAlign: "left", fill: "#FFFFFF",
+          visible: true, locked: true, name: "header-page",
         });
       }
 
-      yOffset += EVENT_CARD_HEIGHT + EVENT_CARD_GAP;
-      eventCountOnPage++;
-    }
+      // --- Event cards in 2 columns ---
+      const startIdx = pageIdx * CARDS_PER_PAGE;
+      const pageEvents = events.slice(startIdx, startIdx + CARDS_PER_PAGE);
 
-    // Flush remaining
-    if (currentPageElements.length > 0) {
-      flushPage(cat.label, cat.color);
+      pageEvents.forEach((event, idx) => {
+        const col = idx % 2;
+        const row = Math.floor(idx / 2);
+        const cardX = MARGIN + col * (COL_WIDTH + COL_GAP);
+        const cardY = USABLE_TOP + row * (CARD_HEIGHT + ROW_GAP);
+
+        const cardEls = buildCard(event, cardX, cardY, cat.color, brandPrimary);
+        pageElements.push(...cardEls);
+      });
+
+      // --- Footer banner ---
+      pageElements.push({
+        id: createId(), type: "rect",
+        x: 0, y: A4_HEIGHT - BANNER_HEIGHT,
+        width: A4_WIDTH, height: BANNER_HEIGHT,
+        rotation: 0, opacity: 0.92, fill: brandSecondary,
+        visible: true, locked: true, name: "footer-banner",
+      });
+      pageElements.push({
+        id: createId(), type: "text",
+        x: MARGIN, y: A4_HEIGHT - BANNER_HEIGHT + 14,
+        width: A4_WIDTH - MARGIN * 2, height: 22,
+        rotation: 0, opacity: 1,
+        text: isOdd ? "📍 Points d'accueil" : "🕐 Horaires & Contact",
+        fontSize: 11, fontFamily: "Montserrat", fontStyle: "bold",
+        textAlign: "center", fill: "#FFFFFF",
+        visible: true, locked: true, name: "footer-text",
+      });
+
+      allPages.push(pageElements);
     }
   }
 

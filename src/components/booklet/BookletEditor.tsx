@@ -110,6 +110,16 @@ const BookletEditor = () => {
     }
   }, [booklet]);
 
+  const loadImage = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      img.src = src;
+    });
+  };
+
   const handleExportPDF = useCallback(async () => {
     setIsExporting(true);
     try {
@@ -121,7 +131,6 @@ const BookletEditor = () => {
       for (let i = 0; i < booklet.pages.length; i++) {
         if (i > 0) pdf.addPage([A4_WIDTH, A4_HEIGHT]);
 
-        // Create offscreen stage
         const container = document.createElement("div");
         container.style.position = "absolute";
         container.style.left = "-9999px";
@@ -131,10 +140,23 @@ const BookletEditor = () => {
         const layer = new Konva.Layer();
         stage.add(layer);
 
-        // White background
         layer.add(new Konva.Rect({ x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT, fill: "white" }));
 
         const page = booklet.pages[i];
+
+        // Pre-load all images for this page
+        const imageElements = page.elements.filter(el => el.type === "image" && el.src && el.visible);
+        const loadedImages: Record<string, HTMLImageElement> = {};
+        await Promise.allSettled(
+          imageElements.map(async (el) => {
+            try {
+              loadedImages[el.id] = await loadImage(el.src!);
+            } catch (e) {
+              console.warn("Could not load image for PDF:", el.src);
+            }
+          })
+        );
+
         for (const el of page.elements) {
           if (!el.visible) continue;
           if (el.type === "rect") {
@@ -144,10 +166,19 @@ const BookletEditor = () => {
               rotation: el.rotation, opacity: el.opacity, cornerRadius: el.cornerRadius,
             }));
           } else if (el.type === "text") {
+            if (el.textBgEnabled && el.textBgColor) {
+              const pad = el.textBgPadding || 8;
+              layer.add(new Konva.Rect({
+                x: el.x - pad, y: el.y - pad,
+                width: el.width + pad * 2, height: (el.height || 40) + pad * 2,
+                fill: el.textBgColor, cornerRadius: el.textBgRadius || 0,
+                rotation: el.rotation, opacity: el.opacity,
+              }));
+            }
             layer.add(new Konva.Text({
-              x: el.x, y: el.y, width: el.width,
+              x: el.x, y: el.y, width: el.width, height: el.height || 40,
               text: el.text, fontSize: el.fontSize, fontFamily: el.fontFamily,
-              fontStyle: el.fontStyle, align: el.textAlign as any,
+              fontStyle: el.fontStyle, align: el.textAlign as any, verticalAlign: "middle",
               fill: el.fill, rotation: el.rotation, opacity: el.opacity,
             }));
           } else if (el.type === "circle") {
@@ -164,8 +195,13 @@ const BookletEditor = () => {
               stroke: el.stroke || "#000", strokeWidth: el.strokeWidth || 2,
               rotation: el.rotation, opacity: el.opacity,
             }));
+          } else if (el.type === "image" && loadedImages[el.id]) {
+            layer.add(new Konva.Image({
+              x: el.x, y: el.y, width: el.width, height: el.height,
+              image: loadedImages[el.id],
+              rotation: el.rotation, opacity: el.opacity,
+            }));
           }
-          // Images are harder in offscreen — skip for now, use toDataURL fallback
         }
 
         layer.draw();

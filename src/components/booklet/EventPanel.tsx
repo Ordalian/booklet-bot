@@ -3,10 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload, ChevronDown, ChevronRight, FileSearch } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export interface ScrapedEvent {
   title: string;
@@ -15,6 +14,7 @@ export interface ScrapedEvent {
   description: string;
   price: string;
   tags: string[];
+  imageUrl?: string;
 }
 
 const EVENT_CATEGORIES = [
@@ -75,13 +75,25 @@ const EventPanel = ({ onGeneratePages }: Props) => {
     }));
   };
 
+  const getDirectives = (catId: string) => {
+    const cat = EVENT_CATEGORIES.find(c => c.id === catId);
+    const state = categories[catId];
+    return {
+      categoryLabel: cat?.label || catId,
+      directives: state?.additionalInfo || "",
+    };
+  };
+
   const scrapeLink = useCallback(async (catId: string, url: string) => {
     if (!url.trim().startsWith("http")) return;
     const key = `${catId}::${url}`;
     if (scrapingUrls.has(key)) return;
     setScrapingUrls(prev => new Set(prev).add(key));
     try {
-      const { data, error } = await supabase.functions.invoke("scrape-preview", { body: { url } });
+      const { categoryLabel, directives } = getDirectives(catId);
+      const { data, error } = await supabase.functions.invoke("scrape-preview", {
+        body: { url, directives, categoryLabel },
+      });
       if (error) throw error;
       if (data?.events?.length) {
         setScrapedEvents(prev => ({
@@ -98,7 +110,50 @@ const EventPanel = ({ onGeneratePages }: Props) => {
     } finally {
       setScrapingUrls(prev => { const n = new Set(prev); n.delete(key); return n; });
     }
-  }, [scrapingUrls]);
+  }, [scrapingUrls, categories]);
+
+  const scrapeFiles = useCallback(async (catId: string) => {
+    const state = categories[catId];
+    if (!state?.files.length) return;
+
+    const key = `${catId}::files`;
+    if (scrapingUrls.has(key)) return;
+    setScrapingUrls(prev => new Set(prev).add(key));
+
+    try {
+      const { categoryLabel, directives } = getDirectives(catId);
+
+      // Upload files to storage and get URLs
+      const fileUrls: string[] = [];
+      for (const file of state.files) {
+        const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `scrape/${Date.now()}_${safeName}`;
+        const { data, error } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
+        if (error) throw error;
+        const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(data.path);
+        fileUrls.push(urlData.publicUrl);
+      }
+
+      const { data, error } = await supabase.functions.invoke("scrape-preview", {
+        body: { fileUrls, directives, categoryLabel },
+      });
+      if (error) throw error;
+
+      if (data?.events?.length) {
+        setScrapedEvents(prev => ({
+          ...prev,
+          [catId]: { ...prev[catId], ["__files__"]: data.events },
+        }));
+        toast.success(`${data.events.length} événement(s) extraits des fichiers`);
+      } else {
+        toast.info("Aucun événement trouvé dans les fichiers");
+      }
+    } catch (err: any) {
+      toast.error("Erreur fichiers: " + (err.message || "Erreur"));
+    } finally {
+      setScrapingUrls(prev => { const n = new Set(prev); n.delete(key); return n; });
+    }
+  }, [categories, scrapingUrls]);
 
   const handleGenerate = () => {
     const allEvents: Record<string, ScrapedEvent[]> = {};
@@ -128,6 +183,7 @@ const EventPanel = ({ onGeneratePages }: Props) => {
         const isOpen = openCats.has(cat.id);
         const catEvents = scrapedEvents[cat.id] || {};
         const eventCount = Object.values(catEvents).flat().length;
+        const isScrapingFiles = scrapingUrls.has(`${cat.id}::files`);
 
         return (
           <div key={cat.id} className="rounded-md border border-border overflow-hidden">
@@ -155,6 +211,7 @@ const EventPanel = ({ onGeneratePages }: Props) => {
 
             {isOpen && state?.enabled && (
               <div className="px-2 py-2 space-y-2 border-t border-border">
+                {/* URLs */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-semibold flex items-center gap-1 text-muted-foreground">
                     <LinkIcon className="w-2.5 h-2.5" /> Liens web
@@ -184,12 +241,16 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                             </Button>
                           )}
                         </div>
+                        {/* Detailed event preview */}
                         {results && results.length > 0 && (
                           <div className="ml-1 mt-1 space-y-1">
                             {results.map((ev, ei) => (
-                              <div key={ei} className="text-[10px] bg-muted/50 rounded px-2 py-1">
-                                <span className="font-semibold">{ev.title}</span>
-                                {ev.date && <span className="text-muted-foreground ml-1">— {ev.date}</span>}
+                              <div key={ei} className="text-[10px] bg-muted/50 rounded px-2 py-1.5 space-y-0.5">
+                                <div className="font-semibold" style={{ color: cat.color }}>{ev.title}</div>
+                                {ev.date && <div className="text-muted-foreground">📅 {ev.date}</div>}
+                                {ev.location && <div className="text-muted-foreground">📍 {ev.location}</div>}
+                                {ev.description && <div className="text-muted-foreground line-clamp-2">{ev.description}</div>}
+                                {ev.price && <div className="font-medium">💰 {ev.price}</div>}
                               </div>
                             ))}
                           </div>
@@ -202,6 +263,7 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                   </Button>
                 </div>
 
+                {/* Files */}
                 <div>
                   <label className="text-[10px] font-semibold flex items-center gap-1 text-muted-foreground">
                     <Upload className="w-2.5 h-2.5" /> Fichiers PDF / images
@@ -224,34 +286,64 @@ const EventPanel = ({ onGeneratePages }: Props) => {
                         </Button>
                       </div>
                     ))}
-                    <label className="flex items-center gap-1 text-[10px] text-primary cursor-pointer hover:underline">
-                      <Plus className="w-2.5 h-2.5" /> Ajouter un fichier
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
-                        multiple
-                        onChange={e => {
-                          const newFiles = Array.from(e.target.files || []);
-                          if (newFiles.length > 0) {
-                            setCategories(prev => ({
-                              ...prev,
-                              [cat.id]: { ...prev[cat.id], files: [...prev[cat.id].files, ...newFiles] },
-                            }));
-                          }
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
+                    <div className="flex items-center gap-1">
+                      <label className="flex items-center gap-1 text-[10px] text-primary cursor-pointer hover:underline">
+                        <Plus className="w-2.5 h-2.5" /> Ajouter
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                          multiple
+                          onChange={e => {
+                            const newFiles = Array.from(e.target.files || []);
+                            if (newFiles.length > 0) {
+                              setCategories(prev => ({
+                                ...prev,
+                                [cat.id]: { ...prev[cat.id], files: [...prev[cat.id].files, ...newFiles] },
+                              }));
+                            }
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {state.files.length > 0 && (
+                        <Button
+                          variant="outline" size="sm" className="text-[10px] h-6 ml-auto"
+                          disabled={isScrapingFiles}
+                          onClick={() => scrapeFiles(cat.id)}
+                        >
+                          {isScrapingFiles
+                            ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            : <FileSearch className="w-3 h-3 mr-1" />}
+                          Analyser
+                        </Button>
+                      )}
+                    </div>
+                    {/* Show file-scraped events */}
+                    {catEvents["__files__"]?.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        <div className="text-[9px] font-semibold text-muted-foreground">Résultats fichiers :</div>
+                        {catEvents["__files__"].map((ev, ei) => (
+                          <div key={ei} className="text-[10px] bg-muted/50 rounded px-2 py-1.5 space-y-0.5">
+                            <div className="font-semibold" style={{ color: cat.color }}>{ev.title}</div>
+                            {ev.date && <div className="text-muted-foreground">📅 {ev.date}</div>}
+                            {ev.location && <div className="text-muted-foreground">📍 {ev.location}</div>}
+                            {ev.description && <div className="text-muted-foreground line-clamp-2">{ev.description}</div>}
+                            {ev.price && <div className="font-medium">💰 {ev.price}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
+                {/* Directives */}
                 <div>
                   <label className="text-[10px] font-semibold text-muted-foreground">Directives</label>
                   <Textarea
                     value={state.additionalInfo}
                     onChange={e => setCategories(prev => ({ ...prev, [cat.id]: { ...prev[cat.id], additionalInfo: e.target.value } }))}
-                    placeholder="Infos supplémentaires..."
+                    placeholder="Ex: focus sur les événements gratuits, exclure les conférences..."
                     rows={2}
                     className="text-[11px] mt-0.5"
                   />
