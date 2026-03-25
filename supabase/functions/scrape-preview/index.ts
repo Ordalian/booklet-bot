@@ -6,7 +6,7 @@ const corsHeaders = {
 async function fetchPageAsText(url: string): Promise<string> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LovableBot/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BookletBot/1.0)' },
     });
     const text = await res.text();
     // Strip HTML tags for a rough text extraction
@@ -41,9 +41,9 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { url, fileUrls, directives, categoryLabel } = body;
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+    if (!GOOGLE_AI_API_KEY) {
+      return new Response(JSON.stringify({ error: 'GOOGLE_AI_API_KEY not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -84,14 +84,14 @@ Deno.serve(async (req) => {
       directiveSection += `\n\n## DIRECTIVES UTILISATEUR (À RESPECTER IMPÉRATIVEMENT)\n${directives.trim()}\n\nCes directives ont PRIORITÉ sur tout le reste. Si l'utilisateur demande de filtrer, exclure, ou se concentrer sur certains types d'événements, tu DOIS respecter ces instructions.`;
     }
 
-    const aiRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiRes = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${GOOGLE_AI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.5-flash',
         messages: [
           {
             role: 'system',

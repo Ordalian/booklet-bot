@@ -3,6 +3,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+async function callAI(apiKey: string, model: string, messages: { role: string; content: string }[]): Promise<Response> {
+  return fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ model, messages }),
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -11,13 +22,13 @@ Deno.serve(async (req) => {
   try {
     const { dateDebut, dateFin, categories, templateId, brand, contactInfo, accueilHoraires } = await req.json();
 
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
+    if (!GOOGLE_AI_API_KEY) {
+      return new Response(JSON.stringify({ error: 'GOOGLE_AI_API_KEY not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -78,24 +89,12 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 2b. Enrichment: search for more details about found events
-      // Extract event names from scraped content and search for additional info
-      if (scrapedContent.length > 0 && LOVABLE_API_KEY) {
+      // 2b. Enrichment: extract event names then search for more details
+      if (scrapedContent.length > 0) {
         try {
-          const extractRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash-lite',
-              messages: [
-                { role: 'system', content: 'Extrais les noms/titres d\'événements trouvés dans ce contenu. Retourne un JSON: { "events": ["nom1", "nom2", ...] }. Max 10 événements. Retourne UNIQUEMENT le JSON.' },
-                { role: 'user', content: scrapedContent.join('\n').substring(0, 6000) },
-              ],
-            }),
-          });
+          const extractRes = await callAI(GOOGLE_AI_API_KEY, 'gemini-2.5-flash-8b', [
+            { role: 'user', content: `Extrais les noms/titres d'événements trouvés dans ce contenu. Retourne un JSON: { "events": ["nom1", "nom2", ...] }. Max 10 événements. Retourne UNIQUEMENT le JSON.\n\n${scrapedContent.join('\n').substring(0, 6000)}` },
+          ]);
 
           if (extractRes.ok) {
             const extractData = await extractRes.json();
@@ -105,7 +104,6 @@ Deno.serve(async (req) => {
               const { events: eventNames } = JSON.parse(extractContent);
               if (eventNames?.length) {
                 console.log(`Found ${eventNames.length} events to enrich`);
-                // Search for up to 5 events to avoid rate limits
                 for (const name of eventNames.slice(0, 5)) {
                   try {
                     const searchRes = await fetch('https://api.firecrawl.dev/v1/search', {
@@ -161,7 +159,7 @@ Deno.serve(async (req) => {
 
     const activeCats = Object.keys(categories).map(id => categoryNames[id] || id).join(", ");
 
-    // 4. Build the template context for AI
+    // 4. Build template context for AI
     let templateContext = '';
     if (template) {
       templateContext = `
@@ -183,12 +181,10 @@ ${templatePages.map(p => `Page ${p.page_number}: "${p.title}"
 `;
     }
 
-    // 5. AI prompt to generate full HTML pages
-    // Build contact/accueil data from request or template
+    // 5. Build AI prompt
     const resolvedContact = contactInfo || template?.contact_info || {};
     const resolvedAccueil = accueilHoraires || template?.accueil_horaires || {};
 
-    // Format dates as DD/MM
     const d1 = new Date(dateDebut);
     const d2 = new Date(dateFin);
     const coverDateRange = `${String(d1.getDate()).padStart(2,'0')}/${String(d1.getMonth()+1).padStart(2,'0')} au ${String(d2.getDate()).padStart(2,'0')}/${String(d2.getMonth()+1).padStart(2,'0')} ${d2.getFullYear()}`;
@@ -220,9 +216,9 @@ PAGES DYNAMIQUES — RÈGLES CRITIQUES:
 - Si le contenu est trop long, CRÉE UNE NOUVELLE PAGE plutôt que de déborder.
 
 BANDEAUX DE CONTACT SUR LES PAGES DYNAMIQUES:
-- Sur chaque page dynamique IMPAIRE (1ère, 3ème, 5ème page dynamique...): ajoute un bandeau en bas avec les POINTS D'ACCUEIL.
+- Sur chaque page dynamique IMPAIRE: ajoute un bandeau en bas avec les POINTS D'ACCUEIL.
   Points d'accueil: ${JSON.stringify(resolvedAccueil)}
-- Sur chaque page dynamique PAIRE (2ème, 4ème, 6ème page dynamique...): ajoute un bandeau en bas avec les HORAIRES et CONTACT.
+- Sur chaque page dynamique PAIRE: ajoute un bandeau en bas avec les HORAIRES et CONTACT.
   Contact/Horaires: ${JSON.stringify(resolvedContact)}
 - Le bandeau doit faire ~80px de haut, avec un fond coloré (couleur de marque), texte blanc, en bas de page.
 
@@ -261,20 +257,10 @@ ${manualInfo.length > 0 ? `Informations manuelles:\n${manualInfo.join('\n\n')}` 
 
 RAPPEL: Ne crée que des événements basés sur les données ci-dessus. NE RIEN INVENTER. Génère autant de pages dynamiques A4 que nécessaire.`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
-    });
+    const aiResponse = await callAI(GOOGLE_AI_API_KEY, 'gemini-2.5-flash', [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ]);
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();

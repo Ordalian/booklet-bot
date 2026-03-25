@@ -6,7 +6,7 @@ const corsHeaders = {
 async function fetchPageAsText(url: string): Promise<string> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LovableBot/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BookletBot/1.0)' },
     });
     const text = await res.text();
     return text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -29,9 +29,9 @@ Deno.serve(async (req) => {
   try {
     const { dateDebut, dateFin, additionalInfo } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+    if (!GOOGLE_AI_API_KEY) {
+      return new Response(JSON.stringify({ error: 'GOOGLE_AI_API_KEY not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -94,14 +94,14 @@ ${additionalInfo ? `Informations supplémentaires de l'utilisateur:\n${additiona
 
 Structure ces informations en événements pour le guide des animations de La Porte du Hainaut. Garde les événements phares (Paris-Roubaix, Véloroute) et adapte les dates. S'il n'y a pas assez de données pour une section, invente des événements réalistes basés sur le territoire (Saint-Amand-les-Eaux, Denain, Wallers-Arenberg, Raismes).`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${GOOGLE_AI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -117,12 +117,7 @@ Structure ces informations en événements pour le guide des animations de La Po
           status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'Crédits IA épuisés. Ajoutez des crédits dans Settings > Workspace > Usage.' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify({ error: 'AI gateway error' }), {
+      return new Response(JSON.stringify({ error: 'AI error: ' + aiResponse.status }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
