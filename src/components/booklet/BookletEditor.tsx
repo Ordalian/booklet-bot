@@ -12,11 +12,12 @@ import SettingsPanel from "./SettingsPanel";
 import { buildEventTile } from "./buildEventTile";
 import { autoLayoutTiles } from "./autoLayoutTiles";
 import { Button } from "@/components/ui/button";
-import { Save, Download, Loader2, ChevronLeft, ChevronRight, Settings, Layers, Image, Calendar, FileText, Moon, Sun } from "lucide-react";
+import { Save, Download, Loader2, ChevronLeft, ChevronRight, Settings, Layers, Image, Calendar, FileText, Moon, Sun, User } from "lucide-react";
 import { A4_WIDTH, A4_HEIGHT, createId } from "@/components/editor/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Link } from "react-router-dom";
 
 const sanitizeFilename = (name: string) =>
   name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -279,6 +280,11 @@ const BookletEditor = () => {
             {isExporting ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1" />}
             Export PDF
           </Button>
+          <Link to="/account">
+            <Button variant="ghost" size="sm" className="h-8 text-xs">
+              <User className="w-3.5 h-3.5 mr-1" /> Compte
+            </Button>
+          </Link>
         </div>
       </header>
 
