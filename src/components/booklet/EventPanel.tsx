@@ -86,6 +86,18 @@ function getFirecrawlApiKey(): string | undefined {
   return localStorage.getItem("firecrawl-api-key") || undefined;
 }
 
+async function extractInvokeError(err: any): Promise<string> {
+  // Supabase FunctionsHttpError wraps the Response in err.context
+  if (err?.context && typeof err.context.json === "function") {
+    try {
+      const body = await err.context.json();
+      if (body?.error) return body.error;
+      if (body?.message) return body.message;
+    } catch {}
+  }
+  return err?.message || "Erreur inconnue";
+}
+
 interface Props {
   onDropEvent?: (event: ScrapedEvent, catId: string) => void;
   onAddSectionHeader?: (name: string, color: string) => void;
@@ -180,18 +192,23 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
           firecrawlApiKey: getFirecrawlApiKey(),
         },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        const msg = await extractInvokeError(error);
+        toast.error(msg, { duration: 6000 });
+        return;
+      }
+      if (data?.error) { toast.error(data.error, { duration: 6000 }); return; }
       const events: ScrapedEvent[] = data?.events || [];
       setEventsCache(prev => ({ ...prev, [key]: { events, timestamp: Date.now() } }));
       if (events.length) {
         toast.success(`${events.length} résultat(s) trouvé(s)`);
       } else {
-        const hint = !getFirecrawlApiKey() ? " (site protégé ? Ajoutez une clé Firecrawl dans Réglages)" : "";
-        toast.info("Aucun résultat trouvé" + hint);
+        const hint = !getFirecrawlApiKey() ? " — site protégé ? Ajoutez une clé Firecrawl dans Réglages" : "";
+        toast.info("Aucun résultat trouvé" + hint, { duration: 6000 });
       }
     } catch (err: any) {
-      toast.error("Erreur: " + (err.message || "Erreur"));
+      const msg = await extractInvokeError(err);
+      toast.error(msg, { duration: 6000 });
     } finally {
       setScrapingKeys(prev => { const n = new Set(prev); n.delete(key); return n; });
     }
@@ -210,8 +227,12 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
           firecrawlApiKey: getFirecrawlApiKey(),
         },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        const msg = await extractInvokeError(error);
+        toast.error(msg, { duration: 6000 });
+        return;
+      }
+      if (data?.error) { toast.error(data.error, { duration: 6000 }); return; }
       const events: ScrapedEvent[] = data?.events || [];
       setEventsCache(prev => ({ ...prev, [key]: { events, timestamp: Date.now() } }));
       if (events.length) {
@@ -220,7 +241,8 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
         toast.info("Aucun résultat dans ce fichier");
       }
     } catch (err: any) {
-      toast.error("Erreur: " + (err.message || "Erreur"));
+      const msg = await extractInvokeError(err);
+      toast.error(msg, { duration: 6000 });
     } finally {
       setScrapingKeys(prev => { const n = new Set(prev); n.delete(key); return n; });
     }
