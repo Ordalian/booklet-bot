@@ -373,7 +373,15 @@ FORMAT DE SORTIE (JSON strict, sans markdown, sans backticks):
 
     console.log(`Extracted ${result.events?.length || 0} events`);
 
-    return new Response(JSON.stringify(result), {
+    const responsePayload: any = result;
+    if (!result.events?.length) {
+      responsePayload._debug = {
+        contentLength: combinedContent.length,
+        aiRaw: content.substring(0, 400),
+      };
+    }
+
+    return new Response(JSON.stringify(responsePayload), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

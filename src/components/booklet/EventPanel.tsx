@@ -203,6 +203,7 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
       if (events.length) {
         toast.success(`${events.length} résultat(s) trouvé(s)`);
       } else {
+        console.log('[scrape-preview] 0 events. Full response:', data);
         const hint = !getFirecrawlApiKey() ? " — site protégé ? Ajoutez une clé Firecrawl dans Réglages" : "";
         toast.info("Aucun résultat trouvé" + hint, { duration: 6000 });
       }
