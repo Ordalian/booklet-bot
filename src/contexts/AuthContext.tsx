@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Subscription {
-  plan: 'free' | 'starter' | 'pro' | 'agency';
+  plan: 'free' | 'starter' | 'pro' | 'agency' | 'founder';
   status: string;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
@@ -105,4 +105,5 @@ export const PLAN_LIMITS = {
   starter: { brochures: 20,   templates: 5,  label: 'Starter' },
   pro:     { brochures: 100,  templates: 20, label: 'Pro' },
   agency:  { brochures: 9999, templates: 999, label: 'Agency' },
+  founder: { brochures: 9999, templates: 999, label: 'Founder ∞' },
 };

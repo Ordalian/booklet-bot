@@ -26,9 +26,8 @@ export default function Account() {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .rpc('get_monthly_usage', { p_user_id: user.id, p_action: 'generate_brochure' })
-      .then(({ data }) => setMonthlyUsage(data || 0));
+    // Usage tracking not yet implemented - placeholder
+    setMonthlyUsage(0);
   }, [user]);
 
   async function handlePortal() {
