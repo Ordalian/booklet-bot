@@ -206,17 +206,26 @@ Deno.serve(async (req) => {
       const meaningfulLength = (result.text || '').replace(/[#\-\s]/g, '').length;
       console.log(`Content length for ${url}: ${meaningfulLength} chars (blocked=${!!result.blocked})`);
 
-      // If blocked or content too thin (SPA shell), retry through Firecrawl
-      const contentTooThin = meaningfulLength < 200;
-      if ((result.blocked || contentTooThin) && FIRECRAWL_API_KEY) {
+      // If blocked and Firecrawl is configured, retry through Firecrawl
+      if (result.blocked && FIRECRAWL_API_KEY) {
         console.log('Direct fetch blocked, retrying via Firecrawl:', url);
         try {
           const fc = await fetchViaFirecrawl(url, FIRECRAWL_API_KEY);
           if (fc.text) contentParts.push(`## Contenu du lien (Firecrawl): ${url}\n${fc.text}`);
           allImageUrls.push(...fc.imageUrls);
         } catch (fcErr) {
-          console.warn('Firecrawl also failed:', fcErr);
+          const fcMsg = String(fcErr).substring(0, 300);
+          console.warn('Firecrawl also failed:', fcMsg);
+          return new Response(
+            JSON.stringify({ error: `Site bloqué et Firecrawl a aussi échoué: ${fcMsg}` }),
+            { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
+      } else if (result.blocked) {
+        return new Response(
+          JSON.stringify({ error: 'Site bloqué (WAF/proxy). Ajoutez une clé Firecrawl dans Réglages pour contourner.' }),
+          { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       } else {
         if (result.text) contentParts.push(`## Contenu du lien: ${url}\n${result.text}`);
         allImageUrls.push(...(result.imageUrls || []));
