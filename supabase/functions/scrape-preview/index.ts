@@ -203,9 +203,12 @@ Deno.serve(async (req) => {
     if (url) {
       console.log('Fetching URL:', url);
       const result = await fetchPageAsText(url) as any;
+      const meaningfulLength = (result.text || '').replace(/[#\-\s]/g, '').length;
+      console.log(`Content length for ${url}: ${meaningfulLength} chars (blocked=${!!result.blocked})`);
 
-      // If blocked (403/429) and Firecrawl is configured, retry through Firecrawl
-      if (result.blocked && FIRECRAWL_API_KEY) {
+      // If blocked or content too thin (SPA shell), retry through Firecrawl
+      const contentTooThin = meaningfulLength < 200;
+      if ((result.blocked || contentTooThin) && FIRECRAWL_API_KEY) {
         console.log('Direct fetch blocked, retrying via Firecrawl:', url);
         try {
           const fc = await fetchViaFirecrawl(url, FIRECRAWL_API_KEY);
