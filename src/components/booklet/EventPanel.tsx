@@ -82,6 +82,10 @@ function getGeminiApiKey(): string | undefined {
   return localStorage.getItem("gemini-api-key") || undefined;
 }
 
+function getFirecrawlApiKey(): string | undefined {
+  return localStorage.getItem("firecrawl-api-key") || undefined;
+}
+
 interface Props {
   onDropEvent?: (event: ScrapedEvent, catId: string) => void;
   onAddSectionHeader?: (name: string, color: string) => void;
@@ -173,6 +177,7 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
           directives: section.directives,
           categoryLabel: section.name,
           userApiKey: getGeminiApiKey(),
+          firecrawlApiKey: getFirecrawlApiKey(),
         },
       });
       if (error) throw error;
@@ -200,6 +205,7 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
           directives: section.directives,
           categoryLabel: section.name,
           userApiKey: getGeminiApiKey(),
+          firecrawlApiKey: getFirecrawlApiKey(),
         },
       });
       if (error) throw error;
