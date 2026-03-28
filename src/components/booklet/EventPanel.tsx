@@ -477,10 +477,19 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
                   return n;
                 })}
               >
-                <div
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                <label
+                  className="relative w-3.5 h-3.5 rounded-full shrink-0 cursor-pointer ring-1 ring-border hover:ring-2 hover:ring-primary/50 transition-all overflow-hidden"
                   style={{ background: section.color }}
-                />
+                  title="Changer la couleur"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <input
+                    type="color"
+                    value={section.color}
+                    onChange={e => updateSection(section.id, { color: e.target.value })}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                </label>
                 {isEditingName ? (
                   <input
                     value={editNameValue}
