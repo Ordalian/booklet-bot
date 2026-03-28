@@ -87,6 +87,20 @@ const BookletEditor = () => {
     }
   }, [booklet, editor]);
 
+  const handleWatermarkUpload = useCallback(async (file: File) => {
+    try {
+      const asset = await booklet.uploadAsset(file);
+      editor.addElement("image", {
+        src: asset.url,
+        x: 0, y: 0,
+        width: A4_WIDTH, height: A4_HEIGHT,
+        opacity: 0.15,
+      });
+    } catch (err: any) {
+      toast.error("Erreur upload: " + err.message);
+    }
+  }, [booklet, editor]);
+
   const handleLogoUpload = useCallback(async (file: File) => {
     try {
       const safeName = sanitizeFilename(file.name);
@@ -411,6 +425,7 @@ const BookletEditor = () => {
                 onMoveDown={() => editor.selectedId && editor.moveLayer(editor.selectedId, "down")}
                 hasSelection={!!editor.selectedId}
                 onImageUpload={handleImageUpload}
+                onWatermarkUpload={handleWatermarkUpload}
                 gridEnabled={gridEnabled}
                 onToggleGrid={() => setGridEnabled(g => !g)}
                 onAutoLayout={handleAutoLayout}

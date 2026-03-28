@@ -1,5 +1,6 @@
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Type, Square, Circle, Minus, ImagePlus, Undo2, Redo2, Trash2, Copy, ArrowUp, ArrowDown, Grid3X3, ZoomIn, ZoomOut, LayoutGrid } from "lucide-react";
+import { Type, Square, Circle, Minus, ImagePlus, Undo2, Redo2, Trash2, Copy, ArrowUp, ArrowDown, Grid3X3, ZoomIn, ZoomOut, LayoutGrid, ChevronDown, Image, Layers } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 
@@ -13,6 +14,7 @@ interface Props {
   onMoveDown: () => void;
   hasSelection: boolean;
   onImageUpload: (file: File) => void;
+  onWatermarkUpload: (file: File) => void;
   gridEnabled?: boolean;
   onToggleGrid?: () => void;
   onAutoLayout?: () => void;
@@ -30,9 +32,26 @@ const tools = [
 
 const EditorToolbar = ({
   onAdd, onUndo, onRedo, onDelete, onDuplicate, onMoveUp, onMoveDown,
-  hasSelection, onImageUpload, gridEnabled, onToggleGrid, onAutoLayout,
+  hasSelection, onImageUpload, onWatermarkUpload, gridEnabled, onToggleGrid, onAutoLayout,
   zoom, onZoomIn, onZoomOut,
 }: Props) => {
+  const [imgMenuOpen, setImgMenuOpen] = useState(false);
+  const imgMenuRef = useRef<HTMLDivElement>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
+  const wmInputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!imgMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (imgMenuRef.current && !imgMenuRef.current.contains(e.target as Node)) {
+        setImgMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [imgMenuOpen]);
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex items-center gap-1 flex-wrap">
@@ -49,19 +68,54 @@ const EditorToolbar = ({
               <TooltipContent side="bottom">{t.label}</TooltipContent>
             </Tooltip>
           ))}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 relative">
-                <ImagePlus className="w-3.5 h-3.5" />
-                <input
-                  type="file" accept="image/*"
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) onImageUpload(f); e.target.value = ""; }}
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Image</TooltipContent>
-          </Tooltip>
+          {/* Image / Filigrane dropdown */}
+          <div ref={imgMenuRef} className="relative">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost" size="sm"
+                  className="h-7 px-1.5 gap-0.5 text-[10px]"
+                  onClick={() => setImgMenuOpen(v => !v)}
+                >
+                  <ImagePlus className="w-3.5 h-3.5" />
+                  <ChevronDown className="w-2.5 h-2.5 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Image / Filigrane</TooltipContent>
+            </Tooltip>
+
+            {imgMenuOpen && (
+              <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-md py-1 min-w-[160px]">
+                <button
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] hover:bg-muted transition-colors text-left"
+                  onClick={() => { setImgMenuOpen(false); imgInputRef.current?.click(); }}
+                >
+                  <Image className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  Ajouter une image
+                </button>
+                <button
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] hover:bg-muted transition-colors text-left"
+                  onClick={() => { setImgMenuOpen(false); wmInputRef.current?.click(); }}
+                >
+                  <Layers className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span>
+                    Ajouter un filigrane
+                    <span className="ml-1 text-[9px] text-muted-foreground">15% opacité</span>
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Hidden file inputs */}
+            <input
+              ref={imgInputRef} type="file" accept="image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) onImageUpload(f); e.target.value = ""; }}
+            />
+            <input
+              ref={wmInputRef} type="file" accept="image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) onWatermarkUpload(f); e.target.value = ""; }}
+            />
+          </div>
         </div>
 
         <Separator orientation="vertical" className="h-5 mx-0.5" />
