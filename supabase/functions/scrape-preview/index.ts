@@ -63,6 +63,12 @@ async function fetchPageAsText(url: string): Promise<PageContent> {
     }
     const html = await res.text();
 
+    // Body-level block detection (Envoy proxy, CDN, WAF returning 200 with block message)
+    if (html.length < 500 || /host\s*(is\s*)?not\s*allowed|access\s*denied|request\s*forbidden|blocked\s*by|bot\s*detected/i.test(html)) {
+      console.warn(`Body-level block detected for ${url} (length=${html.length})`);
+      return { text: '', imageUrls: [], blocked: true } as PageContent & { blocked: boolean };
+    }
+
     // ── 1. Extract JSON-LD structured data (events, articles, etc.)
     const jsonLdSections: string[] = [];
     const jsonLdRe = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -255,18 +261,25 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Tu es un extracteur de contenu expert. Tu analyses du contenu brut (pages web, PDF, JSON-LD, métadonnées) et tu en extrais des éléments structurés.
+            content: `Tu es un extracteur de contenu expert. Tu analyses du contenu brut (pages web, PDF, JSON-LD, métadonnées) et tu en extrais des éléments structurés pour un agenda ou guide touristique.
+
+Tu extrais DEUX types de contenus :
+A) ÉVÉNEMENTS : activités ponctuelles avec une date (concerts, expositions temporaires, marchés, randonnées, fêtes…)
+B) LIEUX / ATTRACTIONS : musées, sites touristiques, restaurants, parcs, monuments — sans date fixe
 
 RÈGLES STRICTES:
 1. N'invente JAMAIS d'informations. Extrais UNIQUEMENT ce qui est explicitement présent.
 2. Si un champ est absent du contenu source, utilise une chaîne vide "".
-3. Extrais TOUS les éléments pertinents trouvés — n'en omet aucun.
-4. La description doit être COMPLÈTE et RICHE : reprends programme, intervenants, horaires détaillés, conditions d'accès, public cible, tarifs. Ne résume pas si le contenu est détaillé.
-5. Pour les dates, utilise le format le plus complet : "Samedi 15 mars 2025 de 14h à 18h". Si plusieurs dates, liste-les toutes.
-6. Pour le prix : "Gratuit" si c'est gratuit, sinon les tarifs exacts avec les conditions.
-7. Pour la localisation : nom du lieu + adresse + ville si disponibles.
+3. Extrais TOUS les éléments pertinents trouvés — n'en omet aucun. Si la page décrit un seul lieu, extrais ce lieu.
+4. La description doit être COMPLÈTE et RICHE : programme, intervenants, horaires détaillés, conditions d'accès, public cible, tarifs. Ne résume pas si le contenu est détaillé.
+5. Pour le champ "date" :
+   - Événement : "Samedi 15 mars 2025 de 14h à 18h". Si plusieurs dates, liste-les toutes.
+   - Lieu permanent : utilise les horaires d'ouverture, ex. "Ouvert mar-dim 10h-18h, fermé lundi".
+   - Si aucune info temporelle, laisse "".
+6. Pour le prix : "Gratuit" si c'est gratuit, sinon les tarifs exacts avec les conditions (adulte, enfant, réduit…).
+7. Pour la localisation : nom du lieu + adresse complète + ville si disponibles.
 8. Pour imageUrl : utilise l'URL d'image la plus pertinente trouvée (og:image, JSON-LD image, etc.), ou "".
-9. Les tags reflètent les caractéristiques clés : "gratuit", "famille", "plein air", "accessible PMR", "sur réservation", "tout public", etc.
+9. Les tags reflètent les caractéristiques clés : "musée", "gratuit", "famille", "plein air", "accessible PMR", "sur réservation", "tout public", "patrimoine", "nature", etc.
 10. Priorité aux données JSON-LD et métadonnées — elles sont plus fiables que le texte brut.
 ${directiveSection}${imageHint}
 
