@@ -19,6 +19,8 @@ const SettingsPanel = ({ brand, onBrandChange, settings, onSettingsChange, onLog
   const [newColor, setNewColor] = useState("#E85D04");
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem("gemini-api-key") || "");
   const [showKey, setShowKey] = useState(false);
+  const [firecrawlKey, setFirecrawlKey] = useState(() => localStorage.getItem("firecrawl-api-key") || "");
+  const [showFcKey, setShowFcKey] = useState(false);
 
   useEffect(() => {
     if (geminiKey.trim()) {
@@ -27,6 +29,14 @@ const SettingsPanel = ({ brand, onBrandChange, settings, onSettingsChange, onLog
       localStorage.removeItem("gemini-api-key");
     }
   }, [geminiKey]);
+
+  useEffect(() => {
+    if (firecrawlKey.trim()) {
+      localStorage.setItem("firecrawl-api-key", firecrawlKey.trim());
+    } else {
+      localStorage.removeItem("firecrawl-api-key");
+    }
+  }, [firecrawlKey]);
 
   const addColor = () => {
     if (brand.colors.length < 12) {
@@ -72,6 +82,33 @@ const SettingsPanel = ({ brand, onBrandChange, settings, onSettingsChange, onLog
           {geminiKey.trim()
             ? "✓ Clé enregistrée — utilisée pour le scrapping et la génération."
             : "Sans clé, l'API partagée du serveur est utilisée."}
+        </p>
+      </div>
+
+      {/* Firecrawl API Key */}
+      <div className="space-y-1">
+        <Label className="text-[11px] flex items-center gap-1">
+          <Key className="w-3 h-3" /> Clé API Firecrawl
+        </Label>
+        <div className="flex gap-1">
+          <Input
+            type={showFcKey ? "text" : "password"}
+            className="h-7 text-xs font-mono"
+            value={firecrawlKey}
+            onChange={e => setFirecrawlKey(e.target.value)}
+            placeholder="fc-..."
+          />
+          <Button
+            variant="ghost" size="icon" className="h-7 w-7 shrink-0"
+            onClick={() => setShowFcKey(v => !v)}
+          >
+            {showFcKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </Button>
+        </div>
+        <p className="text-[9px] text-muted-foreground leading-snug">
+          {firecrawlKey.trim()
+            ? "✓ Clé enregistrée — utilisée pour contourner les sites bloqués (musées, CDN…)."
+            : "Optionnelle — nécessaire pour scraper les sites protégés."}
         </p>
       </div>
 

@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { url, fileUrls, directives, categoryLabel, userApiKey } = body;
+    const { url, fileUrls, directives, categoryLabel, userApiKey, firecrawlApiKey } = body;
 
     // Prefer user-supplied key, fall back to server env
     const GOOGLE_AI_API_KEY = userApiKey || Deno.env.get('GOOGLE_AI_API_KEY');
@@ -194,7 +194,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+    // User-supplied Firecrawl key takes priority over server env
+    const FIRECRAWL_API_KEY = firecrawlApiKey || Deno.env.get('FIRECRAWL_API_KEY');
     const contentParts: string[] = [];
     const allImageUrls: string[] = [];
 
