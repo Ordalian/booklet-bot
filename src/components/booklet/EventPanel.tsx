@@ -181,12 +181,14 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
         },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       const events: ScrapedEvent[] = data?.events || [];
       setEventsCache(prev => ({ ...prev, [key]: { events, timestamp: Date.now() } }));
       if (events.length) {
         toast.success(`${events.length} résultat(s) trouvé(s)`);
       } else {
-        toast.info("Aucun résultat trouvé");
+        const hint = !getFirecrawlApiKey() ? " (site protégé ? Ajoutez une clé Firecrawl dans Réglages)" : "";
+        toast.info("Aucun résultat trouvé" + hint);
       }
     } catch (err: any) {
       toast.error("Erreur: " + (err.message || "Erreur"));
@@ -209,6 +211,7 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
         },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       const events: ScrapedEvent[] = data?.events || [];
       setEventsCache(prev => ({ ...prev, [key]: { events, timestamp: Date.now() } }));
       if (events.length) {
