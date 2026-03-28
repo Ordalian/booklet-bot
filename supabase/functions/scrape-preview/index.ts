@@ -3,33 +3,130 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function fetchPageAsText(url: string): Promise<string> {
+interface PageContent {
+  text: string;
+  imageUrls: string[];
+}
+
+async function fetchPageAsText(url: string): Promise<PageContent> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BookletBot/1.0)' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; BookletBot/1.0)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+      },
     });
-    const text = await res.text();
-    // Strip HTML tags for a rough text extraction
-    return text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-               .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-               .replace(/<[^>]+>/g, ' ')
-               .replace(/\s+/g, ' ')
-               .trim()
-               .substring(0, 30000);
+    if (!res.ok) {
+      console.warn(`HTTP ${res.status} for ${url}`);
+      return { text: '', imageUrls: [] };
+    }
+    const html = await res.text();
+
+    // ── 1. Extract JSON-LD structured data (events, articles, etc.)
+    const jsonLdSections: string[] = [];
+    const jsonLdRe = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let jMatch: RegExpExecArray | null;
+    while ((jMatch = jsonLdRe.exec(html)) !== null) {
+      try {
+        const parsed = JSON.parse(jMatch[1]);
+        jsonLdSections.push(JSON.stringify(parsed, null, 2));
+      } catch { /* ignore malformed */ }
+    }
+
+    // ── 2. Extract <meta> tags (og:, twitter:, description…)
+    const metaLines: string[] = [];
+    const imageUrls: string[] = [];
+    const metaRe = /<meta\s[^>]+>/gi;
+    let mMatch: RegExpExecArray | null;
+    while ((mMatch = metaRe.exec(html)) !== null) {
+      const tag = mMatch[0];
+      const propMatch = tag.match(/(?:property|name)=["']([^"']+)["']/i);
+      const contentMatch = tag.match(/content=["']([^"']+)["']/i);
+      if (propMatch && contentMatch) {
+        const prop = propMatch[1].toLowerCase();
+        const content = contentMatch[1];
+        metaLines.push(`${prop}: ${content}`);
+        if (prop === 'og:image' || prop === 'twitter:image') {
+          imageUrls.push(content);
+        }
+      }
+    }
+
+    // ── 3. Remove noise: scripts, styles, nav, footer, header, aside
+    let cleaned = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+      .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '');
+
+    // ── 4. Try to isolate the main content block
+    const mainMatch =
+      cleaned.match(/<main[^>]*>([\s\S]*?)<\/main>/i) ||
+      cleaned.match(/<article[^>]*>([\s\S]*?)<\/article>/i) ||
+      cleaned.match(/<div[^>]*(?:class|id)=["'][^"']*(?:content|main|article|events?|agenda|programme)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+
+    const bodyHtml = mainMatch ? mainMatch[1] : cleaned;
+
+    // ── 5. Convert to plain text
+    const plainText = bodyHtml
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<\/h[1-6]>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#[0-9]+;/gi, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+      .substring(0, 25000);
+
+    // ── 6. Assemble sections, most structured first
+    const parts: string[] = [];
+    if (jsonLdSections.length > 0) {
+      parts.push(`## Données structurées (JSON-LD)\n${jsonLdSections.join('\n\n')}`);
+    }
+    if (metaLines.length > 0) {
+      parts.push(`## Métadonnées de la page\n${metaLines.join('\n')}`);
+    }
+    parts.push(`## Contenu principal\n${plainText}`);
+
+    return {
+      text: parts.join('\n\n---\n\n').substring(0, 32000),
+      imageUrls,
+    };
   } catch (e) {
     console.warn('Failed to fetch URL:', url, e);
-    return '';
+    return { text: '', imageUrls: [] };
   }
 }
 
 async function fetchFileContent(fileUrl: string): Promise<string> {
-  const res = await fetch(fileUrl);
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('image')) {
-    return `[IMAGE FILE: ${fileUrl}]`;
+  try {
+    const res = await fetch(fileUrl);
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('image')) {
+      return `[IMAGE FILE: ${fileUrl}]`;
+    }
+    const text = await res.text();
+    // Clean up PDF extracted text (lots of whitespace/control chars)
+    return text
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+      .substring(0, 20000);
+  } catch (e) {
+    console.warn('Failed to fetch file:', fileUrl, e);
+    return '';
   }
-  const text = await res.text();
-  return text.substring(0, 15000);
 }
 
 Deno.serve(async (req) => {
@@ -39,50 +136,58 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { url, fileUrls, directives, categoryLabel } = body;
+    const { url, fileUrls, directives, categoryLabel, userApiKey } = body;
 
-    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+    // Prefer user-supplied key, fall back to server env
+    const GOOGLE_AI_API_KEY = userApiKey || Deno.env.get('GOOGLE_AI_API_KEY');
     if (!GOOGLE_AI_API_KEY) {
-      return new Response(JSON.stringify({ error: 'GOOGLE_AI_API_KEY not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Aucune clé API Gemini configurée. Ajoutez la vôtre dans les Réglages.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    let contentParts: string[] = [];
+    const contentParts: string[] = [];
+    const allImageUrls: string[] = [];
 
+    // ── Scrape web URL
     if (url) {
       console.log('Fetching URL:', url);
-      const text = await fetchPageAsText(url);
+      const { text, imageUrls } = await fetchPageAsText(url);
       if (text) contentParts.push(`## Contenu du lien: ${url}\n${text}`);
+      allImageUrls.push(...imageUrls);
     }
 
+    // ── Process uploaded files
     if (fileUrls && Array.isArray(fileUrls)) {
       for (const fUrl of fileUrls) {
         console.log('Processing file:', fUrl);
-        try {
-          const content = await fetchFileContent(fUrl);
-          if (content) contentParts.push(`## Fichier: ${fUrl}\n${content}`);
-        } catch (e) {
-          console.warn('Error processing file:', fUrl, e);
-        }
+        const content = await fetchFileContent(fUrl);
+        if (content) contentParts.push(`## Fichier: ${fUrl}\n${content}`);
       }
     }
 
     if (contentParts.length === 0) {
-      return new Response(JSON.stringify({ events: [], raw: 'Aucun contenu trouvé' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ events: [], raw: 'Aucun contenu trouvé' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const combinedContent = contentParts.join('\n\n---\n\n').substring(0, 30000);
+    const combinedContent = contentParts.join('\n\n---\n\n').substring(0, 32000);
 
     let directiveSection = '';
     if (categoryLabel) {
-      directiveSection += `\n\n## CATÉGORIE CIBLE\nTu extrais UNIQUEMENT les événements qui correspondent à la catégorie "${categoryLabel}". Ignore tout événement hors catégorie.`;
+      directiveSection += `\n\n## SECTION CIBLE\nTu extrais les contenus pertinents pour la section "${categoryLabel}". Ignore tout contenu hors sujet.`;
     }
     if (directives && directives.trim()) {
-      directiveSection += `\n\n## DIRECTIVES UTILISATEUR (À RESPECTER IMPÉRATIVEMENT)\n${directives.trim()}\n\nCes directives ont PRIORITÉ sur tout le reste. Si l'utilisateur demande de filtrer, exclure, ou se concentrer sur certains types d'événements, tu DOIS respecter ces instructions.`;
+      directiveSection += `\n\n## DIRECTIVES UTILISATEUR (PRIORITÉ ABSOLUE)\n${directives.trim()}\n\nCes directives ont priorité sur tout le reste. Respecte-les impérativement.`;
     }
+
+    // Provide og:image candidates to the model
+    const imageHint = allImageUrls.length > 0
+      ? `\n\n## Images trouvées sur la page\n${allImageUrls.slice(0, 5).join('\n')}\nAttribue l'image la plus pertinente à chaque événement si elle correspond.`
+      : '';
 
     const aiRes = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
@@ -95,25 +200,28 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Tu es un extracteur d'événements expert. Tu analyses du contenu brut (pages web, PDF, documents) et tu en extrais des événements structurés.
-
-Le contenu fourni est du texte brut extrait de pages web — il peut contenir du bruit (menus, footers, etc.). Concentre-toi sur le contenu principal.
+            content: `Tu es un extracteur de contenu expert. Tu analyses du contenu brut (pages web, PDF, JSON-LD, métadonnées) et tu en extrais des éléments structurés.
 
 RÈGLES STRICTES:
-1. N'invente JAMAIS d'informations. Extrais UNIQUEMENT ce qui est explicitement présent dans le texte source.
-2. Si un champ n'est pas trouvé dans le texte, mets une chaîne vide "".
-3. Extrais TOUS les événements pertinents trouvés dans le contenu, sans en omettre.
-4. La description doit être COMPLÈTE et DÉTAILLÉE : reprends le maximum d'informations utiles (programme, intervenants, horaires, conditions, public cible). Ne résume PAS en une seule phrase si le contenu est riche.
-5. Pour les dates, utilise le format le plus complet possible (ex: "Samedi 15 mars 2025 de 14h à 18h").
-6. Pour les prix, indique "Gratuit" si c'est gratuit, sinon le tarif exact.
-7. Pour la localisation, sois précis : nom du lieu + adresse/ville si disponible.
-8. Les tags doivent refléter les caractéristiques clés : "gratuit", "famille", "plein air", "accessible PMR", etc.
-${directiveSection}
+1. N'invente JAMAIS d'informations. Extrais UNIQUEMENT ce qui est explicitement présent.
+2. Si un champ est absent du contenu source, utilise une chaîne vide "".
+3. Extrais TOUS les éléments pertinents trouvés — n'en omet aucun.
+4. La description doit être COMPLÈTE et RICHE : reprends programme, intervenants, horaires détaillés, conditions d'accès, public cible, tarifs. Ne résume pas si le contenu est détaillé.
+5. Pour les dates, utilise le format le plus complet : "Samedi 15 mars 2025 de 14h à 18h". Si plusieurs dates, liste-les toutes.
+6. Pour le prix : "Gratuit" si c'est gratuit, sinon les tarifs exacts avec les conditions.
+7. Pour la localisation : nom du lieu + adresse + ville si disponibles.
+8. Pour imageUrl : utilise l'URL d'image la plus pertinente trouvée (og:image, JSON-LD image, etc.), ou "".
+9. Les tags reflètent les caractéristiques clés : "gratuit", "famille", "plein air", "accessible PMR", "sur réservation", "tout public", etc.
+10. Priorité aux données JSON-LD et métadonnées — elles sont plus fiables que le texte brut.
+${directiveSection}${imageHint}
 
 FORMAT DE SORTIE (JSON strict, sans markdown, sans backticks):
-{ "events": [ { "title": "...", "date": "...", "location": "...", "description": "...", "price": "...", "tags": ["..."] } ] }`
+{ "events": [ { "title": "...", "date": "...", "location": "...", "description": "...", "price": "...", "tags": ["..."], "imageUrl": "..." } ] }`,
           },
-          { role: 'user', content: `Extrais les événements de ce contenu:\n\n${combinedContent}` }
+          {
+            role: 'user',
+            content: `Extrais tous les éléments pertinents de ce contenu:\n\n${combinedContent}`,
+          },
         ],
       }),
     });
@@ -122,25 +230,48 @@ FORMAT DE SORTIE (JSON strict, sans markdown, sans backticks):
       const errText = await aiRes.text();
       console.error('AI error:', aiRes.status, errText);
       if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit, réessayez' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Limite de requêtes atteinte, réessayez dans quelques secondes.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-      return new Response(JSON.stringify({ events: [], raw: combinedContent.substring(0, 500) }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      if (aiRes.status === 401 || aiRes.status === 403) {
+        return new Response(
+          JSON.stringify({ error: 'Clé API Gemini invalide ou non autorisée.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ events: [], raw: combinedContent.substring(0, 500) }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const aiData = await aiRes.json();
     let content = aiData.choices?.[0]?.message?.content || '';
     content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
-    let result;
+    let result: { events: any[] };
     try {
       result = JSON.parse(content);
     } catch {
-      console.error('Parse error:', content.substring(0, 300));
-      result = { events: [] };
+      // Try extracting JSON from the response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          result = JSON.parse(jsonMatch[0]);
+        } catch {
+          console.error('Parse error after fallback:', content.substring(0, 300));
+          result = { events: [] };
+        }
+      } else {
+        result = { events: [] };
+      }
+    }
+
+    // Filter out events without a title
+    if (Array.isArray(result.events)) {
+      result.events = result.events.filter(ev => ev?.title?.trim());
     }
 
     console.log(`Extracted ${result.events?.length || 0} events`);
@@ -148,11 +279,11 @@ FORMAT DE SORTIE (JSON strict, sans markdown, sans backticks):
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Erreur inconnue' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
