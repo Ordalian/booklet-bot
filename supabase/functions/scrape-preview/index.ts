@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
       console.log('Fetching URL:', url);
       const result = await fetchPageAsText(url) as any;
 
-      // If blocked (403/429) and Firecrawl is configured, retry through Firecrawl
+      // If blocked and Firecrawl is configured, retry through Firecrawl
       if (result.blocked && FIRECRAWL_API_KEY) {
         console.log('Direct fetch blocked, retrying via Firecrawl:', url);
         try {
@@ -212,8 +212,18 @@ Deno.serve(async (req) => {
           if (fc.text) contentParts.push(`## Contenu du lien (Firecrawl): ${url}\n${fc.text}`);
           allImageUrls.push(...fc.imageUrls);
         } catch (fcErr) {
-          console.warn('Firecrawl also failed:', fcErr);
+          const fcMsg = String(fcErr).substring(0, 300);
+          console.warn('Firecrawl also failed:', fcMsg);
+          return new Response(
+            JSON.stringify({ error: `Site bloqué et Firecrawl a aussi échoué: ${fcMsg}` }),
+            { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
+      } else if (result.blocked) {
+        return new Response(
+          JSON.stringify({ error: 'Site bloqué (WAF/proxy). Ajoutez une clé Firecrawl dans Réglages pour contourner.' }),
+          { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       } else {
         if (result.text) contentParts.push(`## Contenu du lien: ${url}\n${result.text}`);
         allImageUrls.push(...(result.imageUrls || []));
