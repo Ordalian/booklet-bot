@@ -151,6 +151,50 @@ const BookletEditor = () => {
     }
   }, [booklet]);
 
+  const handleAddSectionHeader = useCallback((name: string, color: string) => {
+    const els = editor.elements;
+    // Place below the lowest existing element, or near top if page is empty
+    const bottomY = els.length > 0
+      ? Math.max(...els.map(e => e.y + (e.height || 0)))
+      : 0;
+    const y = bottomY > 0 ? bottomY + 24 : 30;
+    const x = 40;
+    const W = A4_WIDTH - 80;
+    const groupId = createId();
+
+    const newEls = [
+      // Tinted background band
+      {
+        id: createId(), type: "rect" as const, groupId,
+        x, y, width: W, height: 38, rotation: 0,
+        fill: color + "1A", stroke: undefined, strokeWidth: 0,
+        opacity: 1, cornerRadius: 6,
+        locked: false, visible: true, name: "section-header-bg",
+      },
+      // Bold left accent bar
+      {
+        id: createId(), type: "rect" as const, groupId,
+        x, y, width: 5, height: 38, rotation: 0,
+        fill: color, opacity: 1, cornerRadius: 6,
+        locked: false, visible: true, name: "section-header-bar",
+      },
+      // Section name text
+      {
+        id: createId(), type: "text" as const, groupId,
+        x: x + 16, y: y + 9, width: W - 24, height: 22, rotation: 0,
+        text: name,
+        fontSize: 17, fontFamily: "Montserrat", fontStyle: "bold",
+        textAlign: "left" as const, fill: color,
+        opacity: 1, locked: false, visible: true, name: "section-header-title",
+      },
+    ];
+
+    const updated = [...els, ...newEls];
+    editor.setElements(updated);
+    booklet.updateCurrentPageElements(updated);
+    toast.success(`En-tête "${name}" placé sur le canvas`);
+  }, [editor, booklet]);
+
   const handleAutoLayout = useCallback(() => {
     const result = autoLayoutTiles(editor.elements);
     if (result.pages.length === 0) return;
@@ -321,7 +365,7 @@ const BookletEditor = () => {
               />
             </div>
             <div className={leftSection === "events" ? "" : "hidden"}>
-              <EventPanel />
+              <EventPanel onAddSectionHeader={handleAddSectionHeader} />
             </div>
             <div className={leftSection === "assets" ? "" : "hidden"}>
               <AssetLibrary
