@@ -3,23 +3,63 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Realistic browser headers that pass most WAF / bot checks
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Cache-Control': 'no-cache',
+  'Pragma': 'no-cache',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1',
+};
+
 interface PageContent {
   text: string;
   imageUrls: string[];
 }
 
+// Attempt scraping via Firecrawl (handles JS-rendered pages and WAF-protected sites)
+async function fetchViaFirecrawl(url: string, apiKey: string): Promise<PageContent> {
+  const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      url,
+      formats: ['markdown'],
+      includeTags: ['article', 'main', 'section', 'p', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'table'],
+      excludeTags: ['nav', 'footer', 'header', 'aside', 'script', 'style'],
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Firecrawl error ${res.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const markdown = data?.data?.markdown || data?.markdown || '';
+  const ogImage = data?.data?.metadata?.ogImage || data?.metadata?.ogImage || '';
+  return {
+    text: markdown.substring(0, 30000),
+    imageUrls: ogImage ? [ogImage] : [],
+  };
+}
+
 async function fetchPageAsText(url: string): Promise<PageContent> {
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; BookletBot/1.0)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-      },
-    });
+    const res = await fetch(url, { headers: BROWSER_HEADERS });
     if (!res.ok) {
-      console.warn(`HTTP ${res.status} for ${url}`);
-      return { text: '', imageUrls: [] };
+      const blocked = res.status === 403 || res.status === 429 || res.status === 401;
+      console.warn(`HTTP ${res.status} for ${url} (blocked=${blocked})`);
+      return { text: '', imageUrls: [], blocked } as PageContent & { blocked: boolean };
     }
     const html = await res.text();
 
@@ -101,10 +141,11 @@ async function fetchPageAsText(url: string): Promise<PageContent> {
     return {
       text: parts.join('\n\n---\n\n').substring(0, 32000),
       imageUrls,
-    };
+      blocked: false,
+    } as PageContent & { blocked: boolean };
   } catch (e) {
     console.warn('Failed to fetch URL:', url, e);
-    return { text: '', imageUrls: [] };
+    return { text: '', imageUrls: [], blocked: false } as PageContent & { blocked: boolean };
   }
 }
 
@@ -147,15 +188,29 @@ Deno.serve(async (req) => {
       );
     }
 
+    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
     const contentParts: string[] = [];
     const allImageUrls: string[] = [];
 
     // ── Scrape web URL
     if (url) {
       console.log('Fetching URL:', url);
-      const { text, imageUrls } = await fetchPageAsText(url);
-      if (text) contentParts.push(`## Contenu du lien: ${url}\n${text}`);
-      allImageUrls.push(...imageUrls);
+      const result = await fetchPageAsText(url) as any;
+
+      // If blocked (403/429) and Firecrawl is configured, retry through Firecrawl
+      if (result.blocked && FIRECRAWL_API_KEY) {
+        console.log('Direct fetch blocked, retrying via Firecrawl:', url);
+        try {
+          const fc = await fetchViaFirecrawl(url, FIRECRAWL_API_KEY);
+          if (fc.text) contentParts.push(`## Contenu du lien (Firecrawl): ${url}\n${fc.text}`);
+          allImageUrls.push(...fc.imageUrls);
+        } catch (fcErr) {
+          console.warn('Firecrawl also failed:', fcErr);
+        }
+      } else {
+        if (result.text) contentParts.push(`## Contenu du lien: ${url}\n${result.text}`);
+        allImageUrls.push(...(result.imageUrls || []));
+      }
     }
 
     // ── Process uploaded files
