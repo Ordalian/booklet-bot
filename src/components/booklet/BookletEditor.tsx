@@ -12,7 +12,7 @@ import SettingsPanel from "./SettingsPanel";
 import { buildEventTile } from "./buildEventTile";
 import { autoLayoutTiles } from "./autoLayoutTiles";
 import { Button } from "@/components/ui/button";
-import { Save, Download, Loader2, ChevronLeft, ChevronRight, Settings, Layers, Image, Calendar, FileText, Moon, Sun, User } from "lucide-react";
+import { Save, Download, Loader2, ChevronLeft, ChevronRight, Settings, Layers, Image, ScanSearch, FileText, Moon, Sun, User } from "lucide-react";
 import { A4_WIDTH, A4_HEIGHT, createId } from "@/components/editor/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -237,7 +237,7 @@ const BookletEditor = () => {
 
   const sidebarSections = [
     { id: "pages", icon: FileText, label: "Pages" },
-    { id: "events", icon: Calendar, label: "Événements" },
+    { id: "events", icon: ScanSearch, label: "Scrapping" },
     { id: "assets", icon: Image, label: "Assets" },
     { id: "settings", icon: Settings, label: "Réglages" },
   ];

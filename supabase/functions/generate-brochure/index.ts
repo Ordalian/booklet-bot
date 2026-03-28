@@ -20,9 +20,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { dateDebut, dateFin, categories, templateId, brand, contactInfo, accueilHoraires } = await req.json();
+    const { dateDebut, dateFin, categories, templateId, brand, contactInfo, accueilHoraires, userApiKey } = await req.json();
 
-    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+    const GOOGLE_AI_API_KEY = userApiKey || Deno.env.get('GOOGLE_AI_API_KEY');
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');

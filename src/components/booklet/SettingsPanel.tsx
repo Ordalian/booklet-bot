@@ -2,10 +2,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Upload, Plus } from "lucide-react";
+import { Upload, Plus, Eye, EyeOff, Key } from "lucide-react";
 import { BrandConfig } from "@/components/editor/types";
 import { BookletSettings } from "@/hooks/useBookletState";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Props {
   brand: BrandConfig;
@@ -17,6 +17,16 @@ interface Props {
 
 const SettingsPanel = ({ brand, onBrandChange, settings, onSettingsChange, onLogoUpload }: Props) => {
   const [newColor, setNewColor] = useState("#E85D04");
+  const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem("gemini-api-key") || "");
+  const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    if (geminiKey.trim()) {
+      localStorage.setItem("gemini-api-key", geminiKey.trim());
+    } else {
+      localStorage.removeItem("gemini-api-key");
+    }
+  }, [geminiKey]);
 
   const addColor = () => {
     if (brand.colors.length < 12) {
@@ -37,6 +47,33 @@ const SettingsPanel = ({ brand, onBrandChange, settings, onSettingsChange, onLog
   return (
     <div className="space-y-4">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">Paramètres</h3>
+
+      {/* Gemini API Key */}
+      <div className="space-y-1">
+        <Label className="text-[11px] flex items-center gap-1">
+          <Key className="w-3 h-3" /> Clé API Gemini
+        </Label>
+        <div className="flex gap-1">
+          <Input
+            type={showKey ? "text" : "password"}
+            className="h-7 text-xs font-mono"
+            value={geminiKey}
+            onChange={e => setGeminiKey(e.target.value)}
+            placeholder="AIza..."
+          />
+          <Button
+            variant="ghost" size="icon" className="h-7 w-7 shrink-0"
+            onClick={() => setShowKey(v => !v)}
+          >
+            {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </Button>
+        </div>
+        <p className="text-[9px] text-muted-foreground leading-snug">
+          {geminiKey.trim()
+            ? "✓ Clé enregistrée — utilisée pour le scrapping et la génération."
+            : "Sans clé, l'API partagée du serveur est utilisée."}
+        </p>
+      </div>
 
       {/* Booklet name */}
       <div className="space-y-1">
