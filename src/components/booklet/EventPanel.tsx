@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Plus, Trash2, Search, Loader2, Link as LinkIcon, Upload,
   ChevronDown, ChevronRight, FileSearch, GripVertical, ImageIcon,
-  ImageOff, Maximize2, Minimize2, Pencil, X, FolderPlus,
+  ImageOff, Maximize2, Minimize2, Pencil, X, FolderPlus, Heading,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -83,9 +83,10 @@ function getGeminiApiKey(): string | undefined {
 
 interface Props {
   onDropEvent?: (event: ScrapedEvent, catId: string) => void;
+  onAddSectionHeader?: (name: string, color: string) => void;
 }
 
-const EventPanel = ({ onDropEvent }: Props) => {
+const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
   const [sections, setSections] = useState<ScrappingSection[]>(loadSections);
   const [eventsCache, setEventsCache] = useState<EventsCache>(loadEventsCache);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
@@ -510,6 +511,15 @@ const EventPanel = ({ onDropEvent }: Props) => {
                   ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
                   : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
               </button>
+              {onAddSectionHeader && (
+                <button
+                  onClick={e => { e.stopPropagation(); onAddSectionHeader(section.name, section.color); }}
+                  className="p-0.5 rounded text-muted-foreground hover:text-primary transition-colors shrink-0"
+                  title="Ajouter comme en-tête sur le canvas"
+                >
+                  <Heading className="w-2.5 h-2.5" />
+                </button>
+              )}
               <button
                 onClick={e => {
                   e.stopPropagation();
