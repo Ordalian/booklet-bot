@@ -152,46 +152,56 @@ const BookletEditor = () => {
   }, [booklet]);
 
   const handleAddSectionHeader = useCallback((name: string, color: string) => {
-    const els = editor.elements;
-    // Place below the lowest existing element, or near top if page is empty
-    const bottomY = els.length > 0
-      ? Math.max(...els.map(e => e.y + (e.height || 0)))
+    const currentEls = booklet.currentPage.elements;
+
+    // Find bottom of content, ignoring full-page background images
+    // (A watermark spans the full page height and would push the header off-screen)
+    const contentEls = currentEls.filter(
+      e => !(e.type === "image" && e.height >= A4_HEIGHT - 10)
+    );
+    const bottomY = contentEls.length > 0
+      ? Math.max(...contentEls.map(e => e.y + (e.height || 0)))
       : 0;
-    const y = bottomY > 0 ? bottomY + 24 : 30;
+
+    // Cap so the header always lands inside the page
+    const rawY = bottomY > 20 ? bottomY + 24 : 30;
+    const y = Math.min(rawY, A4_HEIGHT - 60);
     const x = 40;
     const W = A4_WIDTH - 80;
     const groupId = createId();
 
     const newEls = [
-      // Tinted background band
+      // Tinted background band — use opacity so Konva renders it correctly
       {
         id: createId(), type: "rect" as const, groupId,
         x, y, width: W, height: 38, rotation: 0,
-        fill: color + "1A", stroke: undefined, strokeWidth: 0,
-        opacity: 1, cornerRadius: 6,
+        fill: color, stroke: "", strokeWidth: 0,
+        opacity: 0.12, cornerRadius: 6,
         locked: false, visible: true, name: "section-header-bg",
       },
-      // Bold left accent bar
+      // Bold left accent bar (full opacity)
       {
         id: createId(), type: "rect" as const, groupId,
         x, y, width: 5, height: 38, rotation: 0,
-        fill: color, opacity: 1, cornerRadius: 6,
+        fill: color, stroke: "", strokeWidth: 0,
+        opacity: 1, cornerRadius: 6,
         locked: false, visible: true, name: "section-header-bar",
       },
-      // Section name text
+      // Section name text (full opacity)
       {
         id: createId(), type: "text" as const, groupId,
         x: x + 16, y: y + 9, width: W - 24, height: 22, rotation: 0,
         text: name,
         fontSize: 17, fontFamily: "Montserrat", fontStyle: "bold",
         textAlign: "left" as const, fill: color,
+        stroke: "", strokeWidth: 0,
         opacity: 1, locked: false, visible: true, name: "section-header-title",
       },
     ];
 
-    const updated = [...els, ...newEls];
-    editor.setElements(updated);
-    booklet.updateCurrentPageElements(updated);
+    // Use the same pattern as handleCanvasDrop (known to work)
+    booklet.addElementsToCurrentPage(newEls);
+    editor.setElements([...currentEls, ...newEls]);
     toast.success(`En-tête "${name}" placé sur le canvas`);
   }, [editor, booklet]);
 
