@@ -113,6 +113,7 @@ const VisualEditor = ({ initialElements = [], initialBrand, onSave, pageTitle }:
         onMoveDown={() => selectedId && moveLayer(selectedId, "down")}
         hasSelection={!!selectedId}
         onImageUpload={handleImageUpload}
+        onWatermarkUpload={handleImageUpload}
       />
 
       <div className="flex gap-4">

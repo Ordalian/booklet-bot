@@ -251,18 +251,12 @@ Deno.serve(async (req) => {
       ? `\n\n## Images trouvées sur la page\n${allImageUrls.slice(0, 5).join('\n')}\nAttribue l'image la plus pertinente à chaque événement si elle correspond.`
       : '';
 
-    const aiRes = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GOOGLE_AI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `Tu es un extracteur de contenu expert. Tu analyses du contenu brut (pages web, PDF, JSON-LD, métadonnées) et tu en extrais des éléments structurés pour un agenda ou guide touristique.
+    const aiPayload = {
+      model: 'gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: `Tu es un extracteur de contenu expert. Tu analyses du contenu brut (pages web, PDF, JSON-LD, métadonnées) et tu en extrais des éléments structurés pour un agenda ou guide touristique.
 
 Tu extrais DEUX types de contenus :
 A) ÉVÉNEMENTS : activités ponctuelles avec une date (concerts, expositions temporaires, marchés, randonnées, fêtes…)
@@ -286,25 +280,47 @@ ${directiveSection}${imageHint}
 
 FORMAT DE SORTIE (JSON strict, sans markdown, sans backticks):
 { "events": [ { "title": "...", "date": "...", "location": "...", "description": "...", "price": "...", "tags": ["..."], "imageUrl": "..." } ] }`,
-          },
-          {
-            role: 'user',
-            content: `Extrais tous les éléments pertinents de ce contenu:\n\n${combinedContent}`,
-          },
-        ],
-      }),
-    });
+        },
+        {
+          role: 'user',
+          content: `Extrais tous les éléments pertinents de ce contenu:\n\n${combinedContent}`,
+        },
+      ],
+    };
 
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      console.error('AI error:', aiRes.status, errText);
-      if (aiRes.status === 429) {
+    // Retry logic with exponential backoff for 429 rate limits
+    let aiRes: Response | null = null;
+    const maxRetries = 3;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      aiRes = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GOOGLE_AI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(aiPayload),
+      });
+
+      if (aiRes.status !== 429 || attempt === maxRetries) break;
+
+      // Extract retry delay from error body, default to exponential backoff
+      const errBody = await aiRes.text();
+      const retryMatch = errBody.match(/"retryDelay":\s*"(\d+)s"/);
+      const waitSec = retryMatch ? Math.min(parseInt(retryMatch[1]), 60) : Math.pow(2, attempt + 1) * 5;
+      console.log(`Rate limited (429), waiting ${waitSec}s before retry ${attempt + 1}/${maxRetries}...`);
+      await new Promise(r => setTimeout(r, waitSec * 1000));
+    }
+
+    if (!aiRes!.ok) {
+      const errText = await aiRes!.text();
+      console.error('AI error:', aiRes!.status, errText);
+      if (aiRes!.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Limite de requêtes atteinte, réessayez dans quelques secondes.' }),
+          JSON.stringify({ error: 'Quota Gemini épuisé (free tier = 20 req/jour). Passez à un plan payant sur https://ai.google.dev ou réessayez demain.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (aiRes.status === 401 || aiRes.status === 403) {
+      if (aiRes!.status === 401 || aiRes!.status === 403) {
         return new Response(
           JSON.stringify({ error: 'Clé API Gemini invalide ou non autorisée.' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -316,7 +332,7 @@ FORMAT DE SORTIE (JSON strict, sans markdown, sans backticks):
       );
     }
 
-    const aiData = await aiRes.json();
+    const aiData = await aiRes!.json();
     let content = aiData.choices?.[0]?.message?.content || '';
     content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
