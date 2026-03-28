@@ -123,13 +123,13 @@ const BookletEditor = () => {
     const jsonStr = e.dataTransfer.getData("application/json");
     if (!jsonStr) return;
     try {
-      const { event, catColor, format, size } = JSON.parse(jsonStr);
+      const { event, catColor, format, size, fontScale } = JSON.parse(jsonStr);
       const canvasWrapper = e.currentTarget as HTMLElement;
       const rect = canvasWrapper.getBoundingClientRect();
       const tileW = size === "large" ? (A4_WIDTH - 80) : 340;
       const x = Math.max(20, Math.min((e.clientX - rect.left) / zoom - tileW / 2, A4_WIDTH - tileW - 20));
       const y = Math.max(20, Math.min((e.clientY - rect.top) / zoom - 130, A4_HEIGHT - 280));
-      const tileElements = buildEventTile(event, x, y, format, catColor, booklet.brand.colors[0], size || "normal");
+      const tileElements = buildEventTile(event, x, y, format, catColor, booklet.brand.colors[0], size || "normal", fontScale ?? 1);
       booklet.addElementsToCurrentPage(tileElements);
       editor.setElements([...booklet.currentPage.elements, ...tileElements]);
       toast.success(`"${event.title}" ajouté à la page`);

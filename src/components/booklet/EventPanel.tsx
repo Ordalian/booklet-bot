@@ -20,6 +20,7 @@ export interface ScrapedEvent {
   imageUrl?: string;
   _format?: "withImage" | "noImage";
   _size?: "normal" | "large";
+  _fontScale?: 1 | 1.2 | 1.5;
 }
 
 interface SavedUrl {
@@ -282,6 +283,7 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
       catColor: section.color,
       format: event._format || "withImage",
       size: event._size || "normal",
+      fontScale: event._fontScale ?? 1,
     }));
     e.dataTransfer.effectAllowed = "copy";
   };
@@ -294,6 +296,7 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
   ) => {
     const format = ev._format || "withImage";
     const size = ev._size || "normal";
+    const fontScale = ev._fontScale ?? 1;
     return (
       <div
         key={`${cacheKey}-${idx}`}
@@ -390,6 +393,19 @@ const EventPanel = ({ onDropEvent, onAddSectionHeader }: Props) => {
               ? <Maximize2 className="w-2.5 h-2.5" />
               : <Minimize2 className="w-2.5 h-2.5" />}
             {size === "large" ? "Large" : "Normal"}
+          </button>
+
+          <button
+            onClick={() => {
+              const next = fontScale === 1 ? 1.2 : fontScale === 1.2 ? 1.5 : 1;
+              updateEventInCache(cacheKey, idx, { _fontScale: next as 1 | 1.2 | 1.5 });
+            }}
+            className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+            title="Taille de police"
+          >
+            <span className="font-semibold">
+              {fontScale === 1 ? "Aa" : fontScale === 1.2 ? "Aa+" : "Aa++"}
+            </span>
           </button>
 
           <button
